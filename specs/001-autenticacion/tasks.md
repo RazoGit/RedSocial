@@ -5,8 +5,8 @@
 
 ## Bloque A — Infraestructura de datos
 
-- [ ] **T1.** Setup Prisma en `apps/api`: dependencias, `prisma/schema.prisma` con datasource+generator, script `prisma:migrate`/`prisma:studio`, conexión singleton `PrismaService` (onModuleInit). _Verificar: `pnpm prisma migrate dev` crea BD vacía sin error._
-- [ ] **T2.** Modelo de datos §2 del plan: modelos `User`, `OauthAccount`, `Session`, `EmailToken` + extensión `citext`. Migración inicial aplicada. _Verificar: introspección muestra índices y únicos del plan._
+- [x] **T1.** Setup Prisma en `apps/api`: dependencias, `prisma/schema.prisma` con datasource+generator, script `prisma:migrate`/`prisma:studio`, conexión singleton `PrismaService` (onModuleInit). _Verificar: `pnpm prisma migrate dev` crea BD vacía sin error._
+- [x] **T2.** Modelo de datos §2 del plan: modelos `User`, `OauthAccount`, `Session`, `EmailToken` + extensión `citext`. Migración inicial aplicada. _Verificar: introspección muestra índices y únicos del plan._
 
 ## Bloque B — Primitivas de seguridad
 
