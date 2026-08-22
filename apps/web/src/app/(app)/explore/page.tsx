@@ -12,7 +12,7 @@ export default function ExplorePage() {
           type="search"
           placeholder="Buscar personas, hashtags..."
           aria-label="Buscar"
-          className="border-input bg-card/40 focus-visible:border-primary focus-visible:ring-primary/30 h-11 w-full rounded-full border pr-4 pl-10 text-sm outline-none focus-visible:ring-2"
+          className="border-input bg-card/40 focus-visible:border-primary focus-visible:ring-primary/30 h-11 w-full rounded-full border pr-4 pl-10 text-base outline-none md:text-sm focus-visible:ring-2"
         />
       </div>
 

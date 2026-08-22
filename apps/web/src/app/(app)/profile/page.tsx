@@ -1,5 +1,6 @@
 import { Share2 } from "lucide-react";
 
+import { LogoutButton } from "@/components/auth/logout-button";
 import { ProfileTabs } from "@/components/profile/profile-tabs";
 import { Button } from "@/components/ui/button";
 import { UserAvatar, VerifiedMark } from "@/components/user";
@@ -36,6 +37,7 @@ export default function ProfilePage() {
             <Share2 className="size-4" />
           </Button>
         </div>
+        <LogoutButton className="max-w-xs" />
       </header>
 
       <ProfileTabs />

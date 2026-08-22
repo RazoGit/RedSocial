@@ -40,7 +40,7 @@ export function PostCard({ post }: PostCardProps) {
             @{author.handle} · {post.time}
           </p>
         </div>
-        <Button variant="ghost" size="icon" aria-label="Mas opciones">
+        <Button variant="ghost" size="icon" aria-label="Mas opciones" className="size-10">
           <MoreHorizontal className="size-5" />
         </Button>
       </div>

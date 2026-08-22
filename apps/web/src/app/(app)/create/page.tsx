@@ -35,7 +35,7 @@ export default function CreatePage() {
           placeholder="Que esta pasando?"
           aria-label="Texto de la publicacion"
           rows={5}
-          className="border-input focus-visible:border-primary focus-visible:ring-primary/30 bg-card/40 w-full flex-1 resize-none rounded-xl border p-3 text-sm outline-none focus-visible:ring-2"
+          className="border-input focus-visible:border-primary focus-visible:ring-primary/30 bg-card/40 w-full flex-1 resize-none rounded-xl border p-3 text-base md:text-sm outline-none focus-visible:ring-2"
         />
       </div>
 

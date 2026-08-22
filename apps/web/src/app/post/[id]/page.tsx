@@ -39,13 +39,13 @@ export default function PostDetailPage() {
   return (
     <div className="flex flex-col gap-4">
       <header className="flex items-center justify-between">
-        <Button variant="ghost" size="icon" asChild>
+        <Button variant="ghost" size="icon" asChild className="size-10">
           <Link href="/feed" aria-label="Volver">
             <ArrowLeft className="size-5" />
           </Link>
         </Button>
         <span className="text-sm font-semibold">Publicacion</span>
-        <Button variant="ghost" size="icon" aria-label="Mas opciones">
+        <Button variant="ghost" size="icon" aria-label="Mas opciones" className="size-10">
           <MoreVertical className="size-5" />
         </Button>
       </header>
@@ -121,7 +121,7 @@ export default function PostDetailPage() {
           type="text"
           placeholder="Escribe un comentario..."
           aria-label="Escribe un comentario"
-          className="border-input bg-card/40 focus-visible:border-primary focus-visible:ring-primary/30 h-11 flex-1 rounded-full border px-4 text-sm outline-none focus-visible:ring-2"
+          className="border-input bg-card/40 focus-visible:border-primary focus-visible:ring-primary/30 text-base md:text-sm h-11 flex-1 rounded-full border px-4 outline-none focus-visible:ring-2"
         />
         <Button type="submit" size="icon" className="rounded-full" aria-label="Enviar comentario">
           <SendHorizontal className="size-4" />

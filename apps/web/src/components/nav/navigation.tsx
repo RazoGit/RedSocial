@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { Bell, Compass, Home, Mail, Plus, Search, User } from "lucide-react";
 
 import { Logo } from "@/components/logo";
+import { LogoutButton } from "@/components/auth/logout-button";
 import { UserAvatar } from "@/components/user";
 import { Button } from "@/components/ui/button";
 import { currentUser } from "@/lib/mock-data";
@@ -63,18 +64,18 @@ export function AppSidebar() {
       </Button>
 
       <div className="mt-auto">
-        <Link
-          href="/profile"
-          className="flex items-center gap-3 rounded-lg p-2 transition-colors hover:bg-secondary"
-        >
-          <UserAvatar name={currentUser.name} className="size-9" />
-          <span className="min-w-0">
-            <span className="block truncate text-sm font-medium">{currentUser.name}</span>
-            <span className="text-muted-foreground block truncate text-xs">
-              @{currentUser.handle}
+        <div className="flex items-center gap-1 rounded-lg p-1 transition-colors hover:bg-secondary">
+          <Link href="/profile" className="flex min-w-0 flex-1 items-center gap-3 rounded-md p-1">
+            <UserAvatar name={currentUser.name} className="size-9" />
+            <span className="min-w-0">
+              <span className="block truncate text-sm font-medium">{currentUser.name}</span>
+              <span className="text-muted-foreground block truncate text-xs">
+                @{currentUser.handle}
+              </span>
             </span>
-          </span>
-        </Link>
+          </Link>
+          <LogoutButton mode="icon" />
+        </div>
       </div>
     </aside>
   );
@@ -88,12 +89,12 @@ export function TopBar() {
           <Logo size={28} />
         </Link>
         <div className="flex items-center gap-1">
-          <Button variant="ghost" size="icon" asChild>
+          <Button variant="ghost" size="icon" asChild className="size-10">
             <Link href="/explore" aria-label="Buscar">
               <Search className="size-5" />
             </Link>
           </Button>
-          <Button variant="ghost" size="icon" asChild>
+          <Button variant="ghost" size="icon" asChild className="size-10">
             <Link href="/notifications" aria-label="Notificaciones">
               <span className="relative">
                 <Bell className="size-5" />
@@ -114,7 +115,7 @@ export function BottomNav() {
   return (
     <nav
       aria-label="Navegacion inferior"
-      className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/95 backdrop-blur md:hidden"
+      className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden"
     >
       <ul className="mx-auto flex h-16 w-full max-w-md items-stretch justify-around px-2">
         {leftItems.map((item) => (

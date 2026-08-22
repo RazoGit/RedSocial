@@ -6,7 +6,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 
 export default function Home() {
   return (
-    <main className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden px-6 py-16">
+    <main className="relative flex min-h-dvh flex-col items-center justify-center overflow-hidden px-6 py-16">
       <div aria-hidden className="pointer-events-none absolute inset-0">
         <div className="absolute inset-0 bg-[linear-gradient(to_right,var(--border)_1px,transparent_1px),linear-gradient(to_bottom,var(--border)_1px,transparent_1px)] bg-[size:56px_56px] opacity-60 [mask-image:radial-gradient(ellipse_65%_55%_at_50%_38%,black,transparent)]" />
         <div className="absolute top-[36%] left-1/2 size-100 -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary/12 blur-[110px]" />
