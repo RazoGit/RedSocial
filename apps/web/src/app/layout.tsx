@@ -7,10 +7,10 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: {
-    default: "RedSocial",
-    template: "%s | RedSocial",
+    default: "R — Conecta. Comparte. Revoluciona.",
+    template: "%s | R",
   },
-  description: "Red social construida con SDD",
+  description: "Una nueva forma de conectar está aquí.",
 };
 
 export default function RootLayout({
@@ -23,8 +23,8 @@ export default function RootLayout({
       <body className="font-sans antialiased">
         <ThemeProvider
           attribute="class"
-          defaultTheme="system"
-          enableSystem
+          defaultTheme="dark"
+          enableSystem={false}
           disableTransitionOnChange
         >
           {children}

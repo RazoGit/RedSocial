@@ -1,6 +1,6 @@
 # ADR 0002 — Identidad visual y sistema de diseño
 
-- Estado: Aceptado
+- Estado: Sustituido por [`0003-identidad-visual-r.md`](./0003-identidad-visual-r.md)
 - Fecha: 2026-08-22
 - Complementa: [`0001-ui-tailwind-shadcn.md`](./0001-ui-tailwind-shadcn.md)
 

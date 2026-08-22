@@ -1,51 +1,54 @@
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Logo } from "@/components/logo";
 import { ThemeToggle } from "@/components/theme-toggle";
 
 export default function Home() {
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center gap-10 p-8">
-      <div className="fixed top-4 right-4">
+    <main className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden px-6 py-16">
+      <div aria-hidden className="pointer-events-none absolute inset-0">
+        <div className="absolute inset-0 bg-[linear-gradient(to_right,var(--border)_1px,transparent_1px),linear-gradient(to_bottom,var(--border)_1px,transparent_1px)] bg-[size:56px_56px] opacity-60 [mask-image:radial-gradient(ellipse_65%_55%_at_50%_38%,black,transparent)]" />
+        <div className="absolute top-[36%] left-1/2 size-100 -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary/12 blur-[110px]" />
+      </div>
+
+      <div className="fixed top-4 right-4 z-10">
         <ThemeToggle />
       </div>
-      <div className="flex flex-col items-center gap-4 text-center">
-        <Logo size={56} />
-        <div>
-          <h1 className="text-4xl font-bold tracking-tight">RedSocial</h1>
-          {/* <p className="mt-2 text-muted-foreground">Next.js + Tailwind v4 + shadcn/ui · Fase 0</p> */}
+
+      <section className="relative flex w-full max-w-xl flex-col items-center gap-8 text-center">
+        <div className="relative">
+          <div
+            aria-hidden
+            className="absolute inset-0 -z-10 scale-[1.75] rounded-full bg-primary/20 blur-2xl"
+          />
+          <Logo size={96} />
         </div>
-      </div>
-      <Card className="w-full max-w-sm">
-        <CardHeader className="flex flex-row items-center gap-3">
-          <Avatar>
-            <AvatarFallback>RS</AvatarFallback>
-          </Avatar>
-          <div>
-            <CardTitle>Verificación de componentes</CardTitle>
-            <CardDescription>Tailwind v4 con tokens shadcn</CardDescription>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-2">
-          <Label htmlFor="demo">Campo de ejemplo</Label>
-          <Input id="demo" placeholder="Escribe algo..." />
-        </CardContent>
-        <CardFooter className="gap-2">
-          <Button>Primario</Button>
-          <Button variant="outline">Outline</Button>
-          <Button variant="ghost">Ghost</Button>
-        </CardFooter>
-      </Card>
+
+        <h1 className="text-4xl font-bold tracking-tight sm:text-6xl">
+          <span className="block sm:inline">Conecta.</span>{" "}
+          <span className="block sm:inline">Comparte.</span>{" "}
+          <span className="text-primary block [text-shadow:0_0_28px_var(--primary)] sm:inline">
+            Revoluciona.
+          </span>
+        </h1>
+
+        <p className="text-muted-foreground max-w-md text-base sm:text-lg">
+          Una nueva forma de conectar está aquí.
+        </p>
+
+        <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
+          <Button size="lg" type="button" className="sm:w-44">
+            Crear cuenta
+          </Button>
+          <Button
+            size="lg"
+            variant="outline"
+            type="button"
+            className="border-primary/60 text-primary hover:bg-primary/10 hover:text-primary sm:w-44"
+          >
+            Iniciar sesión
+          </Button>
+        </div>
+      </section>
     </main>
   );
 }
