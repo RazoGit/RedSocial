@@ -1,7 +1,7 @@
 import { VersioningType, type INestApplication } from "@nestjs/common";
 import { FastifyAdapter, type NestFastifyApplication } from "@nestjs/platform-fastify";
 import { Test } from "@nestjs/testing";
-import { createHash, randomUUID } from "node:crypto";
+import { createHash } from "node:crypto";
 import request from "supertest";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
@@ -10,64 +10,7 @@ import { RegisterResponseSchema } from "@redsocial/contracts";
 import { AppModule } from "../../app.module";
 import { EmailService } from "../email/email.service";
 import { PrismaService } from "../prisma/prisma.service";
-
-interface FakeUserRow {
-  id: string;
-  email: string;
-  passwordHash: string;
-  emailVerified: boolean;
-}
-
-interface FakeEmailTokenRow {
-  userId: string;
-  tokenHash: string;
-  type: string;
-  expiresAt: Date;
-}
-
-/** Sustituto de Prisma con semantica citext (comparacion insensible a mayusculas). */
-class FakePrisma {
-  readonly users: FakeUserRow[] = [];
-  readonly emailTokens: FakeEmailTokenRow[] = [];
-
-  readonly user = {
-    findUnique: async ({ where }: { where: { email: string } }): Promise<FakeUserRow | null> =>
-      this.users.find((u) => u.email.toLowerCase() === where.email.toLowerCase()) ?? null,
-
-    create: async ({
-      data,
-    }: {
-      data: { email: string; passwordHash: string };
-    }): Promise<FakeUserRow> => {
-      if (this.users.some((u) => u.email.toLowerCase() === data.email.toLowerCase())) {
-        throw Object.assign(new Error("Unique constraint failed"), { code: "P2002" });
-      }
-      const row: FakeUserRow = {
-        id: randomUUID(),
-        email: data.email,
-        passwordHash: data.passwordHash,
-        emailVerified: false,
-      };
-      this.users.push(row);
-      return row;
-    },
-  };
-
-  readonly emailToken = {
-    create: async ({
-      data,
-    }: {
-      data: FakeEmailTokenRow;
-    }): Promise<FakeEmailTokenRow & { id: string }> => {
-      this.emailTokens.push(data);
-      return { id: `tok_${this.emailTokens.length}`, ...data };
-    },
-  };
-
-  async $transaction<T>(fn: (tx: FakePrisma) => Promise<T>): Promise<T> {
-    return fn(this);
-  }
-}
+import { FakePrisma } from "../../testing/fake-prisma";
 
 describe("POST /auth/register (integracion)", () => {
   let app: INestApplication;

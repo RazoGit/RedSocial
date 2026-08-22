@@ -47,4 +47,14 @@ export class TokensService {
     });
     return payload as unknown as AccessTokenPayload;
   }
+
+  /** TTL del access token en segundos (para expiresIn de las respuestas). */
+  get accessTtlSeconds(): number {
+    const match = /^(\d+)([smh])$/.exec(this.accessTtl);
+    if (!match) throw new Error(`JWT_ACCESS_TTL invalido: ${this.accessTtl}`);
+    const value = Number(match[1]);
+    const unit = match[2];
+    const factor = unit === "s" ? 1 : unit === "m" ? 60 : 3600;
+    return value * factor;
+  }
 }

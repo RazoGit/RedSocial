@@ -48,3 +48,33 @@ export const RegisterResponseSchema = z.object({
 });
 
 export type RegisterResponse = z.infer<typeof RegisterResponseSchema>;
+
+export const VerifyEmailRequestSchema = z
+  .object({
+    token: z.string().min(32).max(128),
+  })
+  .strict();
+
+export type VerifyEmailRequest = z.infer<typeof VerifyEmailRequestSchema>;
+
+export const VerifyEmailResponseSchema = z.object({
+  accessToken: z.string(),
+  expiresIn: z.number().int().positive(),
+});
+
+export type VerifyEmailResponse = z.infer<typeof VerifyEmailResponseSchema>;
+
+export const ResendVerificationRequestSchema = z
+  .object({
+    email: z.email({ message: "Email invalido" }).max(254),
+  })
+  .strict();
+
+export type ResendVerificationRequest = z.infer<typeof ResendVerificationRequestSchema>;
+
+/** Respuesta generica 202 para endpoints que no revelan estado (anti-enumeracion). */
+export const AcceptedResponseSchema = z.object({
+  accepted: z.literal(true),
+});
+
+export type AcceptedResponse = z.infer<typeof AcceptedResponseSchema>;
