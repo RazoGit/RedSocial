@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 import { Button } from "@/components/ui/button";
 import { Logo } from "@/components/logo";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -36,16 +38,17 @@ export default function Home() {
         </p>
 
         <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
-          <Button size="lg" type="button" className="sm:w-44">
-            Crear cuenta
+          <Button size="lg" type="button" className="sm:w-44" asChild>
+            <Link href="/register">Crear cuenta</Link>
           </Button>
           <Button
             size="lg"
             variant="outline"
             type="button"
             className="border-primary/60 text-primary hover:bg-primary/10 hover:text-primary sm:w-44"
+            asChild
           >
-            Iniciar sesión
+            <Link href="/login">Iniciar sesión</Link>
           </Button>
         </div>
       </section>
