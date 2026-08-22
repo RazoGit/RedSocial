@@ -8,6 +8,7 @@
     "start": "node dist/main.js",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
+    "test": "vitest run",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio"
@@ -21,16 +22,23 @@
     "@nestjs/swagger": "^11.2.0",
     "@prisma/client": "^6.19.3",
     "@redsocial/contracts": "workspace:*",
+    "jose": "^6.2.10",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.2"
   },
   "devDependencies": {
+    "@nestjs/testing": "^11.2.1",
     "@redsocial/config": "workspace:*",
+    "@swc/core": "^1.16.1",
     "@types/node": "^22.18.0",
+    "@types/supertest": "^6.0.3",
     "eslint": "^9.39.2",
     "prisma": "^6.19.3",
+    "supertest": "^7.2.2",
     "ts-node": "^10.9.2",
     "typescript": "^5.9.2",
-    "typescript-eslint": "^8.50.1"
+    "typescript-eslint": "^8.50.1",
+    "unplugin-swc": "^1.5.11",
+    "vitest": "^3.2.7"
   }
 }
