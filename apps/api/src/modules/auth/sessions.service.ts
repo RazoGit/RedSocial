@@ -1,5 +1,6 @@
 import { Injectable, UnauthorizedException } from "@nestjs/common";
 import { createHash, randomBytes } from "node:crypto";
+import { Prisma } from "@prisma/client";
 
 import { PrismaService } from "../prisma/prisma.service";
 
@@ -51,7 +52,7 @@ export class SessionsService {
   }
 
   private async trimActiveSessions(userId: string): Promise<void> {
-    const actives = await this.prisma.session.findMany({
+    const actives: Array<{ id: string }> = await this.prisma.session.findMany({
       where: { userId, revokedAt: null },
       orderBy: [{ createdAt: "asc" }, { id: "asc" }],
       select: { id: true },
@@ -111,7 +112,7 @@ export class SessionsService {
     const nextHash = this.hashToken(refreshToken);
     const expiresAt = this.expiryFor(current.createdAt);
 
-    const created = await this.prisma.$transaction(async (tx) => {
+    const created = await this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       await tx.session.update({
         where: { id: current.id },
         data: { revokedAt: now, replacedByHash: nextHash, lastUsedAt: now },
