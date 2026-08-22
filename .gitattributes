@@ -1,0 +1,16 @@
+# Normaliza saltos de línea en todo el repo
+* text=auto eol=lf
+
+# Windows requiere CRLF
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# Binarios
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.webp binary
+*.woff binary
+*.woff2 binary
