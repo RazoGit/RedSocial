@@ -10,6 +10,7 @@ export default defineConfig({
     env: {
       NODE_ENV: "test",
       JWT_SECRET: "secreto-de-prueba-vitest-0123456789abcdef",
+      EMAIL_DISABLED: "true",
     },
   },
 });

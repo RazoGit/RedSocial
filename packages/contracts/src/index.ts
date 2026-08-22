@@ -26,3 +26,25 @@ export const ApiErrorResponseSchema = z.object({
 });
 
 export type ApiErrorResponse = z.infer<typeof ApiErrorResponseSchema>;
+
+export const PasswordSchema = z
+  .string()
+  .min(10, "La contrasena debe tener al menos 10 caracteres")
+  .max(128, "La contrasena no puede exceder 128 caracteres");
+
+export const RegisterRequestSchema = z
+  .object({
+    email: z.email({ message: "Email invalido" }).max(254),
+    password: PasswordSchema,
+  })
+  .strict();
+
+export type RegisterRequest = z.infer<typeof RegisterRequestSchema>;
+
+export const RegisterResponseSchema = z.object({
+  id: z.uuid(),
+  email: z.string(),
+  emailVerified: z.boolean(),
+});
+
+export type RegisterResponse = z.infer<typeof RegisterResponseSchema>;
