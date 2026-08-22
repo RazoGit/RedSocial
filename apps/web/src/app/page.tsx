@@ -10,15 +10,22 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Logo } from "@/components/logo";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 export default function Home() {
   return (
     <main className="flex min-h-screen flex-col items-center justify-center gap-10 p-8">
-      <div className="text-center">
-        <h1 className="text-4xl font-bold tracking-tight">RedSocial</h1>
-        <p className="mt-2 text-muted-foreground">Next.js + Tailwind v4 + shadcn/ui · Fase 0</p>
+      <div className="fixed top-4 right-4">
+        <ThemeToggle />
       </div>
-
+      <div className="flex flex-col items-center gap-4 text-center">
+        <Logo size={56} />
+        <div>
+          <h1 className="text-4xl font-bold tracking-tight">RedSocial</h1>
+          {/* <p className="mt-2 text-muted-foreground">Next.js + Tailwind v4 + shadcn/ui · Fase 0</p> */}
+        </div>
+      </div>
       <Card className="w-full max-w-sm">
         <CardHeader className="flex flex-row items-center gap-3">
           <Avatar>

@@ -68,13 +68,13 @@ Fuera del MVP (post-lanzamiento): mensajería directa, stories, trending/explora
 
 **Objetivo:** specs 001–002 completas antes de codear features.
 
-- [ ] `specs/001-autenticacion/spec.md` (registro, login social Google/GitHub, refresh rotación, logout, recuperación)
-- [ ] `specs/001-autenticacion/{plan,tasks}.md` — incluye modelo de datos v1 completo (ERD Prisma)
-- [ ] `specs/002-usuarios-perfiles/spec.md` (perfil, avatar, edición, privacidad básica)
-- [ ] Contrato OpenAPI v0 esqueleto + health checks (`/health`, `/ready`)
-- [ ] Scaffold NestJS (Fastify) + scaffold Next.js con tema decidido
+- [x] `specs/001-autenticacion/spec.md` (registro, login social Google/GitHub, refresh rotación, logout, recuperación)
+- [x] `specs/001-autenticacion/{plan,tasks}.md` — incluye modelo de datos v1 completo (ERD Prisma)
+- [x] `specs/002-usuarios-perfiles/spec.md` (perfil, avatar, edición, privacidad básica)
+- [x] Contrato OpenAPI v0 + health checks verificados (`/api/v1/health`, `/api/v1/ready`, JSON en `/docs/openapi.json`)
+- [x] Scaffold NestJS (Fastify) ✅ + scaffold Next.js ✅ · paquetes `packages/contracts` (Zod) y `packages/config` creados
 
-**Criterio de salida:** specs revisadas; swagger UI sirve contrato v0.
+**Criterio de salida:** specs revisadas; swagger UI sirve contrato v0. **→ CUMPLIDO. Siguiente: Fase 2 (implementar spec 001).**
 
 ## FASE 2 — Autenticación (Semanas 2–3) · spec 001
 

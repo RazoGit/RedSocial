@@ -1,4 +1,7 @@
 import type { Metadata } from "next";
+import { GeistSans } from "geist/font/sans";
+
+import { ThemeProvider } from "@/components/theme-provider";
 
 import "./globals.css";
 
@@ -16,8 +19,17 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="es">
-      <body className="antialiased">{children}</body>
+    <html lang="es" suppressHydrationWarning className={GeistSans.variable}>
+      <body className="font-sans antialiased">
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="system"
+          enableSystem
+          disableTransitionOnChange
+        >
+          {children}
+        </ThemeProvider>
+      </body>
     </html>
   );
 }
