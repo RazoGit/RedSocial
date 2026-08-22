@@ -1,0 +1,81 @@
+# Entorno de desarrollo local — Fase 0
+# Uso: docker compose up -d  |  docker compose ps  |  docker compose down
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: redsocial-postgres
+    environment:
+      POSTGRES_USER: redsocial
+      POSTGRES_PASSWORD: redsocial
+      POSTGRES_DB: redsocial
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U redsocial -d redsocial"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: redsocial-redis
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  minio:
+    image: minio/minio:latest
+    container_name: redsocial-minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin123
+    ports:
+      - "9000:9000" # API S3
+      - "9001:9001" # Consola web http://localhost:9001
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Crea el bucket inicial automáticamente
+  minio-init:
+    image: minio/mc:latest
+    container_name: redsocial-minio-init
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set local http://minio:9000 minioadmin minioadmin123 &&
+      mc mb --ignore-existing local/redsocial-dev"
+
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: redsocial-mailpit
+    ports:
+      - "1025:1025" # SMTP
+      - "8025:8025" # UI http://localhost:8025
+    volumes:
+      - mailpit_data:/data
+    environment:
+      MP_DATA_FILE: /data/mailpit.db
+
+volumes:
+  postgres_data:
+  redis_data:
+  minio_data:
+  mailpit_data:
