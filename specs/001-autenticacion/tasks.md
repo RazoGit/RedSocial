@@ -33,7 +33,7 @@
 - [x] **T14.** `POST /forgot-password` (202 siempre) + `POST /reset-password` (revoca sesiones, notifica). Tests RF-11, RF-12.
 - [x] **T15.** Frontend completo: `/login`, `/register`, `/forgot-password`, `/reset-password` con react-hook-form + Zod, manejo de errores del contrato, estados de carga. _Nota: la API se consume same-origin via rewrite de Next (`/api/v1` -> `:4000`), sin CORS; el token de reset llega por query param y se valida en cliente._
 - [x] **T16.** E2E Playwright flujo completo (usa Mailpit API para extraer tokens). Ejecutable con `pnpm e2e`. _Nota: 5 pruebas seriales chromium — registro, verificacion con redireccion al feed, login invalido/valido y recuperacion completa; Playwright levanta API y web solos si no estan corriendo._
-- [ ] **T17.** Documentar en README de `apps/api` cÃ³mo probar todo localmente + variables env requeridas. Actualizar OpenAPI exportado y cliente Orval en web.
+- [x] **T17.** Documentar en README de `apps/api` cÃ³mo probar todo localmente + variables env requeridas. Actualizar OpenAPI exportado y cliente Orval en web. _Nota: script `openapi:export` normaliza el dialecto de zod v4 a OpenAPI 3.0 ($schema, const→enum, exclusiveMinimum numérico) hacia packages/contracts/openapi.json; cliente fetch generado en apps/web/src/lib/generated con mutator que reutiliza el manejo de errores del contrato._
 
 ## Definition of Done de la spec
 

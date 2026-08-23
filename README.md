@@ -122,14 +122,17 @@ pnpm dev
 
 ## Scripts
 
-| Comando                                      | Descripción                               |
-| -------------------------------------------- | ----------------------------------------- |
-| `pnpm dev`                                   | Web + API en modo watch (Turborepo)       |
-| `pnpm build`                                 | Build de todos los paquetes               |
-| `pnpm lint`                                  | ESLint en todo el monorepo                |
-| `pnpm typecheck`                             | TypeScript estricto                       |
-| `pnpm --filter @redsocial/api test`          | Tests unitarios y de integración (Vitest) |
-| `pnpm --filter @redsocial/api prisma:studio` | Explorador de datos Prisma                |
+| Comando                                       | Descripción                               |
+| --------------------------------------------- | ----------------------------------------- |
+| `pnpm dev`                                    | Web + API en modo watch (Turborepo)       |
+| `pnpm build`                                  | Build de todos los paquetes               |
+| `pnpm lint`                                   | ESLint en todo el monorepo                |
+| `pnpm typecheck`                              | TypeScript estricto                       |
+| `pnpm --filter @redsocial/api test`           | Tests unitarios y de integración (Vitest) |
+| `pnpm e2e`                                    | E2E del flujo de auth (Playwright)        |
+| `pnpm --filter @redsocial/api openapi:export` | Exporta el contrato OpenAPI a JSON        |
+| `pnpm --filter @redsocial/web generate:api`   | Regenera el cliente HTTP con Orval        |
+| `pnpm --filter @redsocial/api prisma:studio`  | Explorador de datos Prisma                |
 
 ## Metodología: SDD
 
