@@ -1,8 +1,13 @@
-import { BadRequestException, ConflictException, Injectable } from "@nestjs/common";
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  UnauthorizedException,
+} from "@nestjs/common";
 import { Prisma } from "@prisma/client";
 import { createHash, randomBytes } from "node:crypto";
 
-import type { RegisterRequest, RegisterResponse } from "@redsocial/contracts";
+import type { LoginRequest, RegisterRequest, RegisterResponse } from "@redsocial/contracts";
 
 import { EmailService } from "../email/email.service";
 import { PrismaService } from "../prisma/prisma.service";
@@ -21,6 +26,11 @@ const VERIFY_EMAIL_TTL_MS = 24 * 60 * 60 * 1000;
 const REGISTER_CONFLICT_MESSAGE = "No se pudo completar el registro";
 
 const INVALID_TOKEN_MESSAGE = "Token invalido o expirado";
+
+const LOGIN_FAILED_MESSAGE = "Email o contrasena incorrectos";
+
+/** Contraseña señuelo para igualar el coste temporal cuando no hay hash real. */
+const DUMMY_PASSWORD = "senuelo-timing-parity-9f3a";
 
 export interface IssuedTokens {
   accessToken: string;
@@ -114,6 +124,34 @@ export class AuthService {
     });
 
     await this.enqueueVerificationEmail(user);
+  }
+
+  /**
+   * RF-4: las credenciales correctas permiten login aunque el email no este
+   * verificado (no se bloquea el MVP). Cuentas borradas u OAuth-only (sin
+   * passwordHash) siguen la ruta del hash señuelo, igualando el coste
+   * temporal para no enumerar usuarios.
+   */
+  async login(dto: LoginRequest, meta: SessionMeta = {}): Promise<IssuedTokens> {
+    const user = await this.prisma.user.findUnique({ where: { email: dto.email } });
+    const storedHash =
+      user && user.deletedAt === null && user.passwordHash !== null ? user.passwordHash : null;
+
+    const comparableHash = storedHash ?? (await this.dummyHash());
+    const valid = await this.passwordService.verifyPassword(comparableHash, dto.password);
+    if (!storedHash || !valid || !user) {
+      throw new UnauthorizedException(LOGIN_FAILED_MESSAGE);
+    }
+
+    return this.issueSession(user, meta);
+  }
+
+  private dummyHashPromise?: Promise<string>;
+
+  /** Hash argon2 señuelo calculado una sola vez por proceso. */
+  private dummyHash(): Promise<string> {
+    this.dummyHashPromise ??= this.passwordService.hashPassword(DUMMY_PASSWORD);
+    return this.dummyHashPromise;
   }
 
   private async enqueueVerificationEmail(user: { id: string; email: string }): Promise<void> {

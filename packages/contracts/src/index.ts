@@ -64,6 +64,22 @@ export const VerifyEmailResponseSchema = z.object({
 
 export type VerifyEmailResponse = z.infer<typeof VerifyEmailResponseSchema>;
 
+export const LoginRequestSchema = z
+  .object({
+    email: z.email({ message: "Email invalido" }).max(254),
+    password: z.string().min(1, "La contrasena es obligatoria").max(128),
+  })
+  .strict();
+
+export type LoginRequest = z.infer<typeof LoginRequestSchema>;
+
+export const LoginResponseSchema = z.object({
+  accessToken: z.string(),
+  expiresIn: z.number().int().positive(),
+});
+
+export type LoginResponse = z.infer<typeof LoginResponseSchema>;
+
 export const ResendVerificationRequestSchema = z
   .object({
     email: z.email({ message: "Email invalido" }).max(254),

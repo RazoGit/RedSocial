@@ -3,6 +3,8 @@ import { z } from "zod";
 import {
   AcceptedResponseSchema,
   ApiErrorResponseSchema,
+  LoginRequestSchema,
+  LoginResponseSchema,
   RegisterRequestSchema,
   RegisterResponseSchema,
   ResendVerificationRequestSchema,
@@ -13,6 +15,8 @@ import {
 export type {
   AcceptedResponse,
   ApiErrorResponse,
+  LoginRequest,
+  LoginResponse,
   RegisterRequest,
   RegisterResponse,
   ResendVerificationRequest,
@@ -36,6 +40,10 @@ export const verifyEmailRequestJsonSchema = z.toJSONSchema(
 ) as unknown as SchemaObject;
 export const verifyEmailResponseJsonSchema = z.toJSONSchema(
   VerifyEmailResponseSchema,
+) as unknown as SchemaObject;
+export const loginRequestJsonSchema = z.toJSONSchema(LoginRequestSchema) as unknown as SchemaObject;
+export const loginResponseJsonSchema = z.toJSONSchema(
+  LoginResponseSchema,
 ) as unknown as SchemaObject;
 export const resendVerificationRequestJsonSchema = z.toJSONSchema(
   ResendVerificationRequestSchema,
