@@ -6,9 +6,10 @@ import { JwtAuthGuard } from "./common/guards/jwt-auth.guard";
 import { AuthModule } from "./modules/auth/auth.module";
 import { HealthModule } from "./modules/health/health.module";
 import { PrismaModule } from "./modules/prisma/prisma.module";
+import { UsersModule } from "./modules/users/users.module";
 
 @Module({
-  imports: [PrismaModule, HealthModule, AuthModule],
+  imports: [PrismaModule, HealthModule, UsersModule, AuthModule],
   providers: [
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_FILTER, useClass: AllExceptionsFilter },

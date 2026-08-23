@@ -14,6 +14,16 @@ export interface FakeUserRow {
   passwordHash: string | null;
   emailVerified: boolean;
   deletedAt: Date | null;
+  username: string | null;
+  displayName: string | null;
+  bio: string | null;
+  avatarKey: string | null;
+  avatarThumbKey: string | null;
+  avatarBlurhash: string | null;
+  isPrivate: boolean;
+  usernameChangedAt: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export interface FakeEmailTokenRow {
@@ -46,6 +56,14 @@ export interface FakeOauthAccountRow {
   createdAt: Date;
 }
 
+export interface FakeUsernameHistoryRow {
+  id: string;
+  userId: string;
+  username: string;
+  releasedAt: Date;
+  createdAt: Date;
+}
+
 interface UniqueConstraintError extends Error {
   code: string;
 }
@@ -59,33 +77,63 @@ export class FakePrisma {
   readonly emailTokens: FakeEmailTokenRow[] = [];
   readonly sessions: FakeSessionRow[] = [];
   readonly oauthAccounts: FakeOauthAccountRow[] = [];
+  /** Filas crudas del historial; el delegado `usernameHistory` las consulta. */
+  readonly usernameHistoryRows: FakeUsernameHistoryRow[] = [];
 
   readonly user = {
     findUnique: async ({
       where,
     }: {
-      where: { email?: string; id?: string };
+      where: { email?: string; id?: string; username?: string };
     }): Promise<FakeUserRow | null> =>
       this.users.find(
         (u) =>
           (where.email !== undefined && u.email.toLowerCase() === where.email.toLowerCase()) ||
-          (where.id !== undefined && u.id === where.id),
+          (where.id !== undefined && u.id === where.id) ||
+          (where.username !== undefined &&
+            u.username !== null &&
+            u.username.toLowerCase() === where.username.toLowerCase()),
       ) ?? null,
 
     create: async ({
       data,
     }: {
-      data: { email: string; passwordHash?: string | null; emailVerified?: boolean };
+      data: {
+        email: string;
+        passwordHash?: string | null;
+        emailVerified?: boolean;
+        username?: string | null;
+      };
     }): Promise<FakeUserRow> => {
       if (this.users.some((u) => u.email.toLowerCase() === data.email.toLowerCase())) {
         throw uniqueConstraintError();
       }
+      if (
+        data.username !== null &&
+        data.username !== undefined &&
+        this.users.some(
+          (u) => u.username !== null && u.username.toLowerCase() === data.username!.toLowerCase(),
+        )
+      ) {
+        throw uniqueConstraintError();
+      }
+      const now = new Date();
       const row: FakeUserRow = {
         id: randomUUID(),
         email: data.email,
         passwordHash: data.passwordHash ?? null,
         emailVerified: data.emailVerified ?? false,
         deletedAt: null,
+        username: data.username ?? null,
+        displayName: null,
+        bio: null,
+        avatarKey: null,
+        avatarThumbKey: null,
+        avatarBlurhash: null,
+        isPrivate: false,
+        usernameChangedAt: null,
+        createdAt: now,
+        updatedAt: now,
       };
       this.users.push(row);
       return row;
@@ -96,13 +144,59 @@ export class FakePrisma {
       data,
     }: {
       where: { id: string };
-      data: Partial<Pick<FakeUserRow, "emailVerified" | "passwordHash">>;
+      data: Partial<Omit<FakeUserRow, "id" | "createdAt">>;
     }): Promise<FakeUserRow> => {
       const row = this.users.find((u) => u.id === where.id);
       if (!row) throw new Error("user.update: fila no encontrada");
-      Object.assign(row, data);
+      Object.assign(row, data, { updatedAt: new Date() });
       return row;
     },
+  };
+
+  readonly usernameHistory = {
+    create: async ({
+      data,
+    }: {
+      data: Omit<FakeUsernameHistoryRow, "id" | "createdAt"> & { createdAt?: Date };
+    }): Promise<FakeUsernameHistoryRow> => {
+      const row: FakeUsernameHistoryRow = {
+        id: randomUUID(),
+        createdAt: new Date(),
+        ...data,
+      };
+      this.usernameHistoryRows.push(row);
+      return row;
+    },
+
+    findFirst: async ({
+      where,
+    }: {
+      where: {
+        username?: string;
+        userId?: string;
+        releasedAt?: { gt: Date };
+      };
+    }): Promise<FakeUsernameHistoryRow | null> =>
+      this.usernameHistoryRows.find(
+        (h) =>
+          (where.username === undefined ||
+            h.username.toLowerCase() === where.username.toLowerCase()) &&
+          (where.userId === undefined || h.userId === where.userId) &&
+          (where.releasedAt === undefined ||
+            h.releasedAt.getTime() > where.releasedAt.gt.getTime()),
+      ) ?? null,
+
+    findMany: async ({
+      where,
+    }: {
+      where: { userId?: string; releasedAt?: { gt: Date } };
+    }): Promise<FakeUsernameHistoryRow[]> =>
+      this.usernameHistoryRows.filter(
+        (h) =>
+          (where.userId === undefined || h.userId === where.userId) &&
+          (where.releasedAt === undefined ||
+            h.releasedAt.getTime() > where.releasedAt.gt.getTime()),
+      ),
   };
 
   readonly emailToken = {

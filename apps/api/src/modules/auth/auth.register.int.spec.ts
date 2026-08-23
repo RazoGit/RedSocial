@@ -50,6 +50,8 @@ describe("POST /auth/register (integracion)", () => {
 
     expect(prisma.users).toHaveLength(1);
     expect(prisma.users[0].passwordHash).toMatch(/^\$argon2id\$/);
+    // spec 002 RF-1: el registro deja un username provisional derivado del email.
+    expect(prisma.users[0].username).toBe("ana");
 
     expect(enqueueVerificationEmail).toHaveBeenCalledTimes(1);
     const payload = enqueueVerificationEmail.mock.calls[0][0] as {
@@ -69,6 +71,26 @@ describe("POST /auth/register (integracion)", () => {
     const ttlHours = (stored.expiresAt.getTime() - Date.now()) / 3_600_000;
     expect(ttlHours).toBeGreaterThan(23);
     expect(ttlHours).toBeLessThanOrEqual(24);
+  });
+
+  it("spec 002 RF-1: username provisional unico ante colision de parte local", async () => {
+    const first = await request(app.getHttpServer())
+      .post("/api/v1/auth/register")
+      .send({ email: "pepe@gmail.com", password: "contrasena-segura" });
+    expect(first.status).toBe(201);
+
+    // Distinto email, misma parte local: la derivacion colisiona y el
+    // generador anade sufijo corto en lugar de fallar.
+    const second = await request(app.getHttpServer())
+      .post("/api/v1/auth/register")
+      .send({ email: "pepe@yahoo.com", password: "contrasena-segura" });
+    expect(second.status).toBe(201);
+
+    const usernames = prisma.users.map((u) => u.username ?? "");
+    expect(usernames).toContain("pepe");
+    expect(usernames.some((u) => /^pepe_[0-9a-f]{4}$/.test(u))).toBe(true);
+    const lowered = usernames.map((u) => u.toLowerCase());
+    expect(new Set(lowered).size).toBe(lowered.length);
   });
 
   it("RF-1: duplicado case-insensitive responde 409 con mensaje generico identico", async () => {

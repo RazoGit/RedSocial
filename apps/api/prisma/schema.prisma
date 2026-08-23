@@ -14,13 +14,25 @@ model User {
   email         String    @unique @db.Citext
   passwordHash  String?   @map("password_hash")
   emailVerified Boolean   @default(false) @map("email_verified")
+
+  // Perfil publico (spec 002)
+  username          String?   @unique @db.Citext
+  displayName       String?   @map("display_name")
+  bio               String?
+  avatarKey         String?   @map("avatar_key")
+  avatarThumbKey    String?   @map("avatar_thumb_key")
+  avatarBlurhash    String?   @map("avatar_blurhash")
+  isPrivate         Boolean   @default(false) @map("is_private")
+  usernameChangedAt DateTime? @map("username_changed_at") @db.Timestamptz(3)
+
   createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt     DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
   deletedAt     DateTime? @map("deleted_at") @db.Timestamptz(3)
 
-  oauthAccounts OauthAccount[]
-  sessions      Session[]
-  emailTokens   EmailToken[]
+  oauthAccounts     OauthAccount[]
+  sessions          Session[]
+  emailTokens       EmailToken[]
+  usernameHistories UsernameHistory[]
 
   @@map("users")
 }
@@ -76,4 +88,20 @@ model EmailToken {
 
   @@index([userId, type])
   @@map("email_tokens")
+}
+
+/// Historial de usernames liberados (spec 002 RF-3): el anterior queda
+/// reservado hasta `released_at` (30 dias) y luego puede reutilizarse.
+model UsernameHistory {
+  id         String   @id @default(uuid()) @db.Uuid
+  userId     String   @map("user_id") @db.Uuid
+  username   String   @db.Citext
+  releasedAt DateTime @map("released_at") @db.Timestamptz(3)
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([username, releasedAt])
+  @@index([userId])
+  @@map("username_history")
 }

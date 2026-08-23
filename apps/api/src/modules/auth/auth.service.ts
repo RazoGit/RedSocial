@@ -17,6 +17,7 @@ import type {
 
 import { EmailService } from "../email/email.service";
 import { PrismaService } from "../prisma/prisma.service";
+import { UsernameService } from "../users/services/username.service";
 import { PasswordService } from "./services/password.service";
 import type { SessionMeta } from "./sessions.service";
 import { SessionsService } from "./sessions.service";
@@ -56,6 +57,7 @@ export class AuthService {
     private readonly emailService: EmailService,
     private readonly tokensService: TokensService,
     private readonly sessionsService: SessionsService,
+    private readonly usernameService: UsernameService,
   ) {}
 
   async register(dto: RegisterRequest): Promise<RegisterResponse> {
@@ -71,8 +73,11 @@ export class AuthService {
 
     let user: { id: string; email: string; emailVerified: boolean };
     try {
+      // RF-1 spec 002: toda cuenta nace con username provisional derivado del
+      // email, editable una vez gratis desde el perfil.
+      const username = await this.usernameService.generateUniqueProvisional(dto.email);
       user = await this.prisma.user.create({
-        data: { email: dto.email, passwordHash },
+        data: { email: dto.email, passwordHash, username },
       });
     } catch (error) {
       // Carrera concurrente: el indice unico de citext es la ultima palabra.

@@ -11,6 +11,7 @@ export default defineConfig({
       NODE_ENV: "test",
       JWT_SECRET: "secreto-de-prueba-vitest-0123456789abcdef",
       EMAIL_DISABLED: "true",
+      MEDIA_DISABLED: "true",
       REDIS_URL: "",
     },
   },

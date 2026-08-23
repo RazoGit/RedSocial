@@ -74,6 +74,16 @@ function buildService(
       create: deps.createSession,
       revokeAllForUser: deps.revokeAllForUser,
     } as unknown as ConstructorParameters<typeof AuthService>[4],
+    // UsernameService (spec 002): derivacion fiel del email para los tests unitarios.
+    {
+      generateUniqueProvisional: async (email: string) =>
+        email
+          .split("@")[0]
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, "_")
+          .replace(/^_+|_+$/g, "")
+          .slice(0, 16) || "usuario",
+    } as unknown as ConstructorParameters<typeof AuthService>[5],
   );
 
   return { service, deps, prisma };

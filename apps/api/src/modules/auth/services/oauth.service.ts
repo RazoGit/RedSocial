@@ -2,6 +2,7 @@ import { ConflictException, Injectable, UnauthorizedException } from "@nestjs/co
 import { Prisma } from "@prisma/client";
 
 import { PrismaService } from "../../prisma/prisma.service";
+import { UsernameService } from "../../users/services/username.service";
 import type { ProviderProfile } from "../strategies/oauth-strategy.types";
 import type { OAuthProviderId } from "./oauth-config.service";
 
@@ -15,7 +16,10 @@ const REGISTER_CONFLICT_MESSAGE = "No se pudo completar el registro";
  */
 @Injectable()
 export class OauthService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly usernameService: UsernameService,
+  ) {}
 
   async linkOrCreate(
     provider: OAuthProviderId,
@@ -52,9 +56,11 @@ export class OauthService {
         return existing;
       }
 
+      // RF-1 spec 002: username provisional tambien para cuentas sociales.
+      const username = await this.usernameService.generateUniqueProvisional(profile.email);
       const created = await this.prisma.$transaction(async (tx) => {
         const user = await tx.user.create({
-          data: { email: profile.email, passwordHash: null, emailVerified: true },
+          data: { email: profile.email, passwordHash: null, emailVerified: true, username },
         });
         await tx.oauthAccount.create({
           data: {
