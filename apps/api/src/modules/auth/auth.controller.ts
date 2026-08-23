@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  ForbiddenException,
   Get,
   HttpCode,
   HttpStatus,
@@ -27,6 +28,7 @@ import {
   apiErrorResponseJsonSchema,
   loginRequestJsonSchema,
   loginResponseJsonSchema,
+  refreshResponseJsonSchema,
   registerRequestJsonSchema,
   registerResponseJsonSchema,
   resendVerificationRequestJsonSchema,
@@ -34,6 +36,7 @@ import {
   verifyEmailResponseJsonSchema,
   type LoginRequest,
   type LoginResponse,
+  type RefreshResponse,
   type RegisterRequest,
   type RegisterResponse,
   type ResendVerificationRequest,
@@ -42,8 +45,9 @@ import {
   type VerifyEmailResponse,
 } from "./dto/auth.dto";
 import type { SessionMeta } from "./sessions.service";
+import { CsrfCookieService, CSRF_COOKIE_NAME } from "./services/csrf-cookie.service";
 import { LoginRateLimiterService } from "./services/login-rate-limiter.service";
-import { RefreshCookieService } from "./services/refresh-cookie.service";
+import { RefreshCookieService, REFRESH_COOKIE_NAME } from "./services/refresh-cookie.service";
 import type { AccessTokenPayload } from "./tokens.service";
 
 interface RequestWithUser extends FastifyRequest {
@@ -56,6 +60,7 @@ export class AuthController {
   constructor(
     private readonly authService: AuthService,
     private readonly refreshCookie: RefreshCookieService,
+    private readonly csrfCookie: CsrfCookieService,
     private readonly loginLimiter: LoginRateLimiterService,
   ) {}
 
@@ -67,6 +72,31 @@ export class AuthController {
           ? request.headers["user-agent"]
           : undefined,
       ip: request.ip,
+    };
+  }
+
+  private cookieFrom(request: FastifyRequest, name: string): string | undefined {
+    const cookies = (request as unknown as { cookies?: Record<string, string | undefined> })
+      .cookies;
+    return cookies?.[name];
+  }
+
+  /** Emision de sesion: cookies rt+csrf y cuerpo con access/csrfToken. */
+  private respondWithSession(
+    reply: FastifyReply,
+    issued: {
+      accessToken: string;
+      expiresIn: number;
+      refreshToken: string;
+      csrfToken: string;
+    },
+  ): { accessToken: string; expiresIn: number; csrfToken: string } {
+    this.refreshCookie.set(reply, issued.refreshToken);
+    this.csrfCookie.set(reply, issued.csrfToken);
+    return {
+      accessToken: issued.accessToken,
+      expiresIn: issued.expiresIn,
+      csrfToken: issued.csrfToken,
     };
   }
 
@@ -124,8 +154,7 @@ export class AuthController {
     @Res({ passthrough: true }) reply: FastifyReply,
   ): Promise<VerifyEmailResponse> {
     const issued = await this.authService.verifyEmail(dto.token, this.metaFrom(request));
-    this.refreshCookie.set(reply, issued.refreshToken);
-    return { accessToken: issued.accessToken, expiresIn: issued.expiresIn };
+    return this.respondWithSession(reply, issued);
   }
 
   @Public()
@@ -187,8 +216,60 @@ export class AuthController {
     }
 
     await this.loginLimiter.reset(request.ip);
-    this.refreshCookie.set(reply, issued.refreshToken);
-    return { accessToken: issued.accessToken, expiresIn: issued.expiresIn };
+    return this.respondWithSession(reply, issued);
+  }
+
+  @Public()
+  @HttpCode(HttpStatus.OK)
+  @Post("refresh")
+  @ApiOperation({
+    summary: "Renueva la sesion rotando el refresh token de la cookie",
+    description:
+      "RF-6/RF-7/RF-8: requiere cookie rt httpOnly y header X-CSRF-Token igual al valor de la cookie csrf_token (double-submit, D6). Rota el refresh: el anterior queda invalido y reutilizarlo revoca toda la familia con 401. Expiracion deslizante 30 d con tope de 90 d.",
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: "Sesion renovada; nuevas cookies rt y csrf_token",
+    schema: refreshResponseJsonSchema,
+  })
+  @ApiResponse({
+    status: HttpStatus.UNAUTHORIZED,
+    description: "Cookie ausente, token invalido, expirado o reutilizado (familia revocada)",
+    schema: apiErrorResponseJsonSchema,
+  })
+  @ApiResponse({
+    status: HttpStatus.FORBIDDEN,
+    description: "Header X-CSRF-Token ausente o distinto de la cookie csrf_token",
+    schema: apiErrorResponseJsonSchema,
+  })
+  async refresh(
+    @Req() request: RequestWithUser,
+    @Res({ passthrough: true }) reply: FastifyReply,
+  ): Promise<RefreshResponse> {
+    const csrfHeader = request.headers["x-csrf-token"];
+    const headerValue = Array.isArray(csrfHeader) ? csrfHeader[0] : csrfHeader;
+    const cookieValue = this.cookieFrom(request, CSRF_COOKIE_NAME);
+    if (
+      typeof headerValue !== "string" ||
+      headerValue.length === 0 ||
+      headerValue !== cookieValue
+    ) {
+      throw new ForbiddenException("csrf_invalid");
+    }
+
+    const rawRefresh = this.cookieFrom(request, REFRESH_COOKIE_NAME);
+    if (!rawRefresh) {
+      throw new UnauthorizedException("missing_refresh_cookie");
+    }
+
+    try {
+      const issued = await this.authService.refresh(rawRefresh);
+      return this.respondWithSession(reply, issued);
+    } catch (error) {
+      this.refreshCookie.clear(reply);
+      this.csrfCookie.clear(reply);
+      throw error;
+    }
   }
 
   @Public()

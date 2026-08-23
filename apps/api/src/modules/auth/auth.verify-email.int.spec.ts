@@ -85,6 +85,12 @@ describe("POST /auth/verify-email y /auth/resend-verification (integracion)", ()
     // En tests NODE_ENV!=production: sin Secure.
     expect(rtCookie).not.toContain("Secure");
 
+    // D6: cookie csrf legible (sin HttpOnly) y su valor coincide con el cuerpo.
+    const csrfCookie = cookieHeader.find((c) => c.startsWith("csrf_token="));
+    expect(csrfCookie).toBeDefined();
+    expect(csrfCookie).not.toContain("HttpOnly");
+    expect(csrfCookie?.match(/csrf_token=([^;]+)/)?.[1]).toBe(res.body.csrfToken);
+
     // Estado persistido: token usado una sola vez y usuario verificado.
     expect(prisma.emailTokens[0].usedAt).not.toBeNull();
     expect(prisma.users[0].emailVerified).toBe(true);

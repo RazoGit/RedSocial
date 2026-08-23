@@ -7,6 +7,7 @@ import {
   LoginRateLimiterService,
   redisClientProvider,
 } from "./services/login-rate-limiter.service";
+import { CsrfCookieService } from "./services/csrf-cookie.service";
 import { RefreshCookieService } from "./services/refresh-cookie.service";
 import { PasswordService } from "./services/password.service";
 import { SessionsService } from "./sessions.service";
@@ -22,6 +23,7 @@ import { TokensService } from "./tokens.service";
     AuthService,
     PasswordService,
     RefreshCookieService,
+    CsrfCookieService,
     LoginRateLimiterService,
   ],
   exports: [TokensService],

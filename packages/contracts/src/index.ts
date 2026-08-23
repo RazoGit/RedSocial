@@ -57,10 +57,20 @@ export const VerifyEmailRequestSchema = z
 
 export type VerifyEmailRequest = z.infer<typeof VerifyEmailRequestSchema>;
 
-export const VerifyEmailResponseSchema = z.object({
+/**
+ * Respuesta comun de los endpoints que inician o renuevan sesion:
+ * access token corto en cuerpo (D5) + csrfToken para el double-submit
+ * de las proximas mutaciones autenticadas por cookie (D6).
+ */
+export const AuthSessionResponseSchema = z.object({
   accessToken: z.string(),
   expiresIn: z.number().int().positive(),
+  csrfToken: z.string().min(32).max(128),
 });
+
+export type AuthSessionResponse = z.infer<typeof AuthSessionResponseSchema>;
+
+export const VerifyEmailResponseSchema = AuthSessionResponseSchema;
 
 export type VerifyEmailResponse = z.infer<typeof VerifyEmailResponseSchema>;
 
@@ -73,12 +83,13 @@ export const LoginRequestSchema = z
 
 export type LoginRequest = z.infer<typeof LoginRequestSchema>;
 
-export const LoginResponseSchema = z.object({
-  accessToken: z.string(),
-  expiresIn: z.number().int().positive(),
-});
+export const LoginResponseSchema = AuthSessionResponseSchema;
 
 export type LoginResponse = z.infer<typeof LoginResponseSchema>;
+
+export const RefreshResponseSchema = AuthSessionResponseSchema;
+
+export type RefreshResponse = z.infer<typeof RefreshResponseSchema>;
 
 export const ResendVerificationRequestSchema = z
   .object({

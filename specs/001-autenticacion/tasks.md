@@ -19,7 +19,7 @@
 - [x] **T6.** `POST /register` + polÃ­tica argon2id + email de verificaciÃ³n encolado (BullMQ productor; worker temporal inline que consume en dev). Tests: RF-1, RF-2.
 - [x] **T7.** `POST /verify-email` y `POST /resend-verification` (tokens hasheados, un solo uso, 24 h). Tests RF-3.
 - [x] **T8.** `POST /login` + rate limit Redis 5/15 min por IP (throttler). Tests: RF-4, RF-5. _Nota: D8 ajustada — en vez de @nestjs/throttler se usa LoginRateLimiterService propio sobre ioredis porque RF-5 exige contar solo intentos FALLIDOS y resetear al acertar._
-- [ ] **T9.** `POST /refresh` con cookie httpOnly + CSRF double-submit. Tests: RF-6, RF-7, RF-8.
+- [x] **T9.** `POST /refresh` con cookie httpOnly + CSRF double-submit. Tests: RF-6, RF-7, RF-8.
 - [ ] **T10.** `POST /logout`, `/logout-all`, `GET /me`. Tests RF-10.
 
 ## Bloque D â€” OAuth

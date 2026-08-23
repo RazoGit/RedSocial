@@ -80,6 +80,11 @@ describe("POST /auth/login (integracion)", () => {
     expect(rtCookie).toContain("HttpOnly");
     expect(rtCookie).toContain("Path=/api/v1/auth");
 
+    const csrfCookie = cookieHeader.find((c) => c.startsWith("csrf_token="));
+    expect(csrfCookie).toBeDefined();
+    expect(csrfCookie).not.toContain("HttpOnly");
+    expect(csrfCookie?.match(/csrf_token=([^;]+)/)?.[1]).toBe(res.body.csrfToken);
+
     expect(prisma.sessions).toHaveLength(1);
     expect(prisma.sessions[0].userId).toBe(prisma.users[0].id);
   });

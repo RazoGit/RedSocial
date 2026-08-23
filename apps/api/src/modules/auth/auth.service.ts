@@ -36,6 +36,7 @@ export interface IssuedTokens {
   accessToken: string;
   expiresIn: number;
   refreshToken: string;
+  csrfToken: string;
 }
 
 @Injectable()
@@ -170,7 +171,10 @@ export class AuthService {
     });
   }
 
-  /** RF-6 (emision): access JWT en cuerpo + refresh opaco para la cookie httpOnly. */
+  /**
+   * RF-6 (emision): access JWT en cuerpo + refresh opaco para la cookie
+   * httpOnly + token csrf para el double-submit de las mutaciones siguientes.
+   */
   private async issueSession(
     user: { id: string; email?: string | null },
     meta: SessionMeta,
@@ -184,7 +188,36 @@ export class AuthService {
       accessToken,
       expiresIn: this.tokensService.accessTtlSeconds,
       refreshToken: session.refreshToken,
+      csrfToken: this.newCsrfToken(),
     };
+  }
+
+  /**
+   * RF-7/RF-8: delega en SessionsService la rotacion con deteccion de reuso
+   * (revoca la familia) y expiracion deslizante con tope absoluto. La nueva
+   * sesion hereda UA/IP de la anterior (rotate no recibe meta).
+   */
+  async refresh(rawRefreshToken: string): Promise<IssuedTokens> {
+    const rotated = await this.sessionsService.rotate(rawRefreshToken);
+    const user = await this.prisma.user.findUnique({ where: { id: rotated.userId } });
+    if (!user || user.deletedAt !== null) {
+      throw new UnauthorizedException("invalid_refresh_token");
+    }
+    const accessToken = await this.tokensService.signAccessToken({
+      sub: user.id,
+      email: user.email ?? undefined,
+    });
+    return {
+      accessToken,
+      expiresIn: this.tokensService.accessTtlSeconds,
+      refreshToken: rotated.refreshToken,
+      csrfToken: this.newCsrfToken(),
+    };
+  }
+
+  /** Token csrf crudo para la cookie legible y el cuerpo de la respuesta. */
+  private newCsrfToken(): string {
+    return randomBytes(32).toString("base64url");
   }
 
   private sha256(raw: string): string {

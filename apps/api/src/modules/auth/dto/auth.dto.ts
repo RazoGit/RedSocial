@@ -5,6 +5,7 @@ import {
   ApiErrorResponseSchema,
   LoginRequestSchema,
   LoginResponseSchema,
+  RefreshResponseSchema,
   RegisterRequestSchema,
   RegisterResponseSchema,
   ResendVerificationRequestSchema,
@@ -17,6 +18,7 @@ export type {
   ApiErrorResponse,
   LoginRequest,
   LoginResponse,
+  RefreshResponse,
   RegisterRequest,
   RegisterResponse,
   ResendVerificationRequest,
@@ -44,6 +46,9 @@ export const verifyEmailResponseJsonSchema = z.toJSONSchema(
 export const loginRequestJsonSchema = z.toJSONSchema(LoginRequestSchema) as unknown as SchemaObject;
 export const loginResponseJsonSchema = z.toJSONSchema(
   LoginResponseSchema,
+) as unknown as SchemaObject;
+export const refreshResponseJsonSchema = z.toJSONSchema(
+  RefreshResponseSchema,
 ) as unknown as SchemaObject;
 export const resendVerificationRequestJsonSchema = z.toJSONSchema(
   ResendVerificationRequestSchema,
