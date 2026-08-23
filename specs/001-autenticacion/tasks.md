@@ -16,7 +16,7 @@
 
 ## Bloque C â€” Flujos locales
 
-- [x] **T6.** `POST /register` + polÃ­tica argon2id + email de verificaciÃ³n encolado (BullMQ productor; worker temporal inline que consume en dev). Tests: RF-1, RF-2.
+- [x] **T6.** `POST /register` + polÃ­tica argon2id + email de verificaciÃ³n encolado (BullMQ productor; worker temporal inline que consume en dev). Tests: RF-1, RF-2. _Nota: se corrigio el worker inline — faltaba el decorador @Processor(EMAIL_QUEUE) y la cola nunca se consumia en dev._
 - [x] **T7.** `POST /verify-email` y `POST /resend-verification` (tokens hasheados, un solo uso, 24 h). Tests RF-3.
 - [x] **T8.** `POST /login` + rate limit Redis 5/15 min por IP (throttler). Tests: RF-4, RF-5. _Nota: D8 ajustada — en vez de @nestjs/throttler se usa LoginRateLimiterService propio sobre ioredis porque RF-5 exige contar solo intentos FALLIDOS y resetear al acertar._
 - [x] **T9.** `POST /refresh` con cookie httpOnly + CSRF double-submit. Tests: RF-6, RF-7, RF-8.
@@ -31,7 +31,7 @@
 ## Bloque E â€” RecuperaciÃ³n y cierre
 
 - [x] **T14.** `POST /forgot-password` (202 siempre) + `POST /reset-password` (revoca sesiones, notifica). Tests RF-11, RF-12.
-- [ ] **T15.** Frontend completo: `/login`, `/register`, `/forgot-password`, `/reset-password` con react-hook-form + Zod, manejo de errores del contrato, estados de carga.
+- [x] **T15.** Frontend completo: `/login`, `/register`, `/forgot-password`, `/reset-password` con react-hook-form + Zod, manejo de errores del contrato, estados de carga. _Nota: la API se consume same-origin via rewrite de Next (`/api/v1` -> `:4000`), sin CORS; el token de reset llega por query param y se valida en cliente._
 - [ ] **T16.** E2E Playwright flujo completo (usa Mailpit API para extraer tokens). Ejecutable con `pnpm e2e`.
 - [ ] **T17.** Documentar en README de `apps/api` cÃ³mo probar todo localmente + variables env requeridas. Actualizar OpenAPI exportado y cliente Orval en web.
 

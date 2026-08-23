@@ -1,91 +1,123 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { RegisterRequestSchema } from "@redsocial/contracts";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import {
+  AcceptedResponseSchema,
+  ForgotPasswordRequestSchema,
+  LoginRequestSchema,
+  LoginResponseSchema,
+  PasswordSchema,
+  RegisterRequestSchema,
+  RegisterResponseSchema,
+  ResetPasswordResponseSchema,
+} from "@redsocial/contracts";
+import type {
+  ForgotPasswordRequest,
+  LoginRequest,
+  RegisterRequest,
+  RegisterResponse,
+} from "@redsocial/contracts";
+import { LoaderCircle } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-
-function DemoHint() {
-  return (
-    <p className="text-muted-foreground text-center text-xs">
-      Demo visual: la conexion con la API llega al completar la spec 001.
-    </p>
-  );
-}
-
-interface FieldError {
-  field: string;
-  message: string;
-}
-
-function useFormErrors() {
-  const [errors, setErrors] = useState<FieldError[]>([]);
-  const errorFor = (field: string) => errors.find((error) => error.field === field)?.message;
-
-  return { errors, setErrors, errorFor };
-}
+import { ApiError, postJson } from "@/lib/api-client";
+import { setAuthSession } from "@/lib/auth-session";
 
 function ErrorText({ children }: { children?: string }) {
   if (!children) return null;
   return <p className="text-destructive text-xs">{children}</p>;
 }
 
+function FormError({ message }: { message?: string }) {
+  if (!message) return null;
+  return (
+    <p
+      role="alert"
+      className="border-destructive/40 bg-destructive/10 text-destructive rounded-md border px-3 py-2 text-xs"
+    >
+      {message}
+    </p>
+  );
+}
+
+function SubmitButton({ pending, children }: { pending: boolean; children: string }) {
+  return (
+    <Button type="submit" disabled={pending}>
+      {pending ? <LoaderCircle aria-hidden className="size-4 animate-spin" /> : null}
+      {children}
+    </Button>
+  );
+}
+
 export function LoginForm() {
   const router = useRouter();
-  const [pending, setPending] = useState(false);
-  const { setErrors, errorFor } = useFormErrors();
+  const [formError, setFormError] = useState<string>();
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+  } = useForm<LoginRequest>({
+    resolver: zodResolver(LoginRequestSchema),
+    defaultValues: { email: "", password: "" },
+  });
 
-  const onSubmit = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const data = new FormData(event.currentTarget);
-    if (!data.get("email") || !data.get("password")) {
-      setErrors([
-        { field: "email", message: "El email es obligatorio" },
-        { field: "password", message: "La contrasena es obligatoria" },
-      ]);
-      return;
+  const onSubmit = async (values: LoginRequest) => {
+    setFormError(undefined);
+    try {
+      const session = await postJson("/auth/login", values, LoginResponseSchema);
+      setAuthSession({
+        accessToken: session.accessToken,
+        csrfToken: session.csrfToken,
+        expiresAt: Date.now() + session.expiresIn * 1000,
+      });
+      // replace: hacia atras no debe volver al login con sesion ya activa.
+      router.replace("/feed");
+    } catch (error) {
+      setFormError(error instanceof Error ? error.message : "No se pudo iniciar sesion.");
     }
-    setErrors([]);
-    setPending(true);
-    setTimeout(() => router.push("/feed"), 500);
   };
 
   return (
-    <form onSubmit={onSubmit} className="flex flex-col gap-4" noValidate>
+    <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4" noValidate>
       <div className="flex flex-col gap-2">
         <Label htmlFor="email">Email</Label>
         <Input
           id="email"
-          name="email"
           type="email"
           placeholder="tu@email.com"
           autoComplete="email"
+          aria-invalid={Boolean(errors.email)}
+          {...register("email")}
         />
-        <ErrorText>{errorFor("email")}</ErrorText>
+        <ErrorText>{errors.email?.message}</ErrorText>
       </div>
       <div className="flex flex-col gap-2">
         <Label htmlFor="password">Contrasena</Label>
         <Input
           id="password"
-          name="password"
           type="password"
           placeholder="Tu contrasena"
           autoComplete="current-password"
+          aria-invalid={Boolean(errors.password)}
+          {...register("password")}
         />
-        <ErrorText>{errorFor("password")}</ErrorText>
+        <ErrorText>{errors.password?.message}</ErrorText>
       </div>
 
       <Link href="/forgot-password" className="text-primary text-right text-xs hover:underline">
         Olvide mi contrasena
       </Link>
 
-      <Button type="submit" disabled={pending}>
-        {pending ? "Entrando..." : "Iniciar sesion"}
-      </Button>
+      <FormError message={formError} />
+
+      <SubmitButton pending={isSubmitting}>Iniciar sesion</SubmitButton>
 
       <p className="text-muted-foreground text-center text-sm">
         No tienes cuenta?{" "}
@@ -93,62 +125,73 @@ export function LoginForm() {
           Registrate
         </Link>
       </p>
-
-      <DemoHint />
     </form>
   );
 }
 
 export function RegisterForm() {
-  const router = useRouter();
-  const [pending, setPending] = useState(false);
-  const { setErrors, errorFor } = useFormErrors();
+  const [created, setCreated] = useState<RegisterResponse>();
+  const [formError, setFormError] = useState<string>();
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+  } = useForm<RegisterRequest>({
+    resolver: zodResolver(RegisterRequestSchema),
+    defaultValues: { email: "", password: "" },
+  });
 
-  const onSubmit = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const data = new FormData(event.currentTarget);
-    const parsed = RegisterRequestSchema.safeParse({
-      email: data.get("email"),
-      password: data.get("password"),
-    });
-
-    if (!parsed.success) {
-      setErrors(
-        parsed.error.issues.map((issue) => ({
-          field: String(issue.path[0] ?? ""),
-          message: issue.message,
-        })),
-      );
-      return;
+  const onSubmit = async (values: RegisterRequest) => {
+    setFormError(undefined);
+    try {
+      const response = await postJson("/auth/register", values, RegisterResponseSchema);
+      setCreated(response);
+    } catch (error) {
+      setFormError(error instanceof Error ? error.message : "No se pudo crear la cuenta.");
     }
-    setErrors([]);
-    setPending(true);
-    setTimeout(() => router.push("/feed"), 700);
   };
 
+  if (created) {
+    return (
+      <div className="flex flex-col items-center gap-3 py-6 text-center">
+        <h1 className="text-lg font-semibold">Revisa tu correo</h1>
+        <p className="text-muted-foreground max-w-xs text-sm">
+          Te enviamos un enlace de verificacion a{" "}
+          <span className="text-foreground font-medium">{created.email}</span>. Verifica tu cuenta
+          para poder iniciar sesion.
+        </p>
+        <Button variant="outline" size="sm" asChild>
+          <Link href="/login">Volver a iniciar sesion</Link>
+        </Button>
+      </div>
+    );
+  }
+
   return (
-    <form onSubmit={onSubmit} className="flex flex-col gap-4" noValidate>
+    <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4" noValidate>
       <div className="flex flex-col gap-2">
         <Label htmlFor="email">Email</Label>
         <Input
           id="email"
-          name="email"
           type="email"
           placeholder="tu@email.com"
           autoComplete="email"
+          aria-invalid={Boolean(errors.email)}
+          {...register("email")}
         />
-        <ErrorText>{errorFor("email")}</ErrorText>
+        <ErrorText>{errors.email?.message}</ErrorText>
       </div>
       <div className="flex flex-col gap-2">
         <Label htmlFor="password">Contrasena</Label>
         <Input
           id="password"
-          name="password"
           type="password"
           placeholder="Minimo 10 caracteres"
           autoComplete="new-password"
+          aria-invalid={Boolean(errors.password)}
+          {...register("password")}
         />
-        <ErrorText>{errorFor("password")}</ErrorText>
+        <ErrorText>{errors.password?.message}</ErrorText>
       </div>
 
       <ul className="text-muted-foreground list-inside list-disc text-xs">
@@ -156,9 +199,9 @@ export function RegisterForm() {
         <li>Una mayuscula, una minuscula y un numero</li>
       </ul>
 
-      <Button type="submit" disabled={pending}>
-        {pending ? "Creando cuenta..." : "Crear cuenta"}
-      </Button>
+      <FormError message={formError} />
+
+      <SubmitButton pending={isSubmitting}>Crear cuenta</SubmitButton>
 
       <p className="text-muted-foreground text-center text-sm">
         Ya tienes cuenta?{" "}
@@ -166,14 +209,33 @@ export function RegisterForm() {
           Inicia sesion
         </Link>
       </p>
-
-      <DemoHint />
     </form>
   );
 }
 
 export function ForgotPasswordForm() {
   const [sent, setSent] = useState(false);
+  const [formError, setFormError] = useState<string>();
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+  } = useForm<ForgotPasswordRequest>({
+    resolver: zodResolver(ForgotPasswordRequestSchema),
+    defaultValues: { email: "" },
+  });
+
+  const onSubmit = async (values: ForgotPasswordRequest) => {
+    setFormError(undefined);
+    try {
+      await postJson("/auth/forgot-password", values, AcceptedResponseSchema);
+      setSent(true);
+    } catch (error) {
+      // La respuesta 202 nunca revela si el email existe; solo los fallos
+      // de red o del servidor llegan aqui.
+      setFormError(error instanceof Error ? error.message : "No se pudo enviar el enlace.");
+    }
+  };
 
   if (sent) {
     return (
@@ -190,25 +252,23 @@ export function ForgotPasswordForm() {
   }
 
   return (
-    <form
-      className="flex flex-col gap-4"
-      onSubmit={(event) => {
-        event.preventDefault();
-        setSent(true);
-      }}
-      noValidate
-    >
+    <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4" noValidate>
       <div className="flex flex-col gap-2">
         <Label htmlFor="email">Email</Label>
         <Input
           id="email"
-          name="email"
           type="email"
           placeholder="tu@email.com"
           autoComplete="email"
+          aria-invalid={Boolean(errors.email)}
+          {...register("email")}
         />
+        <ErrorText>{errors.email?.message}</ErrorText>
       </div>
-      <Button type="submit">Enviar enlace</Button>
+
+      <FormError message={formError} />
+
+      <SubmitButton pending={isSubmitting}>Enviar enlace</SubmitButton>
 
       <p className="text-muted-foreground text-center text-sm">
         Recordaste la contrasena?{" "}
@@ -216,8 +276,138 @@ export function ForgotPasswordForm() {
           Inicia sesion
         </Link>
       </p>
-
-      <DemoHint />
     </form>
+  );
+}
+
+const ResetPasswordFormSchema = z
+  .object({
+    token: z.string(),
+    password: PasswordSchema,
+    confirmPassword: z.string(),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: "Las contrasenas no coinciden",
+    path: ["confirmPassword"],
+  });
+
+type ResetPasswordFormData = z.infer<typeof ResetPasswordFormSchema>;
+
+export function ResetPasswordForm() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const token = searchParams.get("token") ?? "";
+  const [resetDone, setResetDone] = useState(false);
+  const [invalidToken, setInvalidToken] = useState(false);
+  const [formError, setFormError] = useState<string>();
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+  } = useForm<ResetPasswordFormData>({
+    resolver: zodResolver(ResetPasswordFormSchema),
+    defaultValues: { token, password: "", confirmPassword: "" },
+  });
+
+  const tokenValid = token.length >= 32 && token.length <= 128;
+
+  if (!resetDone && !invalidToken && !tokenValid) {
+    return <InvalidTokenPanel />;
+  }
+
+  const onSubmit = async (values: ResetPasswordFormData) => {
+    setFormError(undefined);
+    try {
+      await postJson(
+        "/auth/reset-password",
+        { token: values.token, password: values.password },
+        ResetPasswordResponseSchema,
+      );
+      setResetDone(true);
+    } catch (error) {
+      if (error instanceof ApiError && error.statusCode === 400) {
+        setInvalidToken(true);
+        return;
+      }
+      setFormError(error instanceof Error ? error.message : "No se pudo restablecer.");
+    }
+  };
+
+  if (resetDone) {
+    return (
+      <div className="flex flex-col items-center gap-3 py-6 text-center">
+        <h1 className="text-lg font-semibold">Contrasena restablecida</h1>
+        <p className="text-muted-foreground max-w-xs text-sm">
+          Tu contrasena se actualizo y se cerraron todas las sesiones activas. Inicia sesion con tu
+          nueva contrasena.
+        </p>
+        <Button size="sm" onClick={() => router.push("/login")}>
+          Ir a iniciar sesion
+        </Button>
+      </div>
+    );
+  }
+
+  if (invalidToken) {
+    return <InvalidTokenPanel />;
+  }
+
+  return (
+    <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4" noValidate>
+      <div className="flex flex-col gap-2">
+        <Label htmlFor="password">Nueva contrasena</Label>
+        <Input
+          id="password"
+          type="password"
+          placeholder="Minimo 10 caracteres"
+          autoComplete="new-password"
+          aria-invalid={Boolean(errors.password)}
+          {...register("password")}
+        />
+        <ErrorText>{errors.password?.message}</ErrorText>
+      </div>
+      <div className="flex flex-col gap-2">
+        <Label htmlFor="confirmPassword">Confirmar contrasena</Label>
+        <Input
+          id="confirmPassword"
+          type="password"
+          placeholder="Repite la contrasena"
+          autoComplete="new-password"
+          aria-invalid={Boolean(errors.confirmPassword)}
+          {...register("confirmPassword")}
+        />
+        <ErrorText>{errors.confirmPassword?.message}</ErrorText>
+      </div>
+
+      <ul className="text-muted-foreground list-inside list-disc text-xs">
+        <li>Minimo 10 y maximo 128 caracteres</li>
+        <li>Una mayuscula, una minuscula y un numero</li>
+      </ul>
+
+      <FormError message={formError} />
+
+      <SubmitButton pending={isSubmitting}>Restablecer contrasena</SubmitButton>
+
+      <p className="text-muted-foreground text-center text-sm">
+        Recordaste la contrasena?{" "}
+        <Link href="/login" className="text-primary hover:underline">
+          Inicia sesion
+        </Link>
+      </p>
+    </form>
+  );
+}
+
+function InvalidTokenPanel() {
+  return (
+    <div className="flex flex-col items-center gap-3 py-6 text-center">
+      <h1 className="text-lg font-semibold">Enlace invalido o expirado</h1>
+      <p className="text-muted-foreground max-w-xs text-sm">
+        El enlace de restablecimiento no es valido o ya fue usado. Solicita uno nuevo.
+      </p>
+      <Button variant="outline" size="sm" asChild>
+        <Link href="/forgot-password">Solicitar nuevo enlace</Link>
+      </Button>
+    </div>
   );
 }
