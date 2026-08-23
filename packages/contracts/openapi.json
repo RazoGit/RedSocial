@@ -27,6 +27,560 @@
         "tags": ["health"]
       }
     },
+    "/api/v1/users/me": {
+      "get": {
+        "description": "RF-6: incluye username provisional, datos editables y auditoria updatedAt. Requiere access token Bearer.",
+        "operationId": "UsersController_me_v1",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    },
+                    "email": {
+                      "type": "string"
+                    },
+                    "emailVerified": {
+                      "type": "boolean"
+                    },
+                    "username": {
+                      "type": "string"
+                    },
+                    "displayName": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "bio": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "avatarUrl": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "avatarBlurhash": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "isPrivate": {
+                      "type": "boolean"
+                    },
+                    "updatedAt": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "email",
+                    "emailVerified",
+                    "username",
+                    "displayName",
+                    "bio",
+                    "avatarUrl",
+                    "avatarBlurhash",
+                    "isPrivate",
+                    "updatedAt"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Bearer ausente o cuenta inexistente/borrada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "statusCode": {
+                      "type": "number"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "error": {
+                      "type": "string"
+                    },
+                    "path": {
+                      "type": "string"
+                    },
+                    "timestamp": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["statusCode", "message", "path", "timestamp"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        },
+        "summary": "Perfil completo del usuario autenticado",
+        "tags": ["users"]
+      },
+      "patch": {
+        "description": "Acepta displayName, bio, isPrivate y username. El primer cambio de username es gratis; despues maximo uno cada 14 dias y el anterior queda reservado 30 dias (RF-3).",
+        "operationId": "UsersController_update_v1",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "displayName": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 50,
+                    "nullable": true
+                  },
+                  "bio": {
+                    "type": "string",
+                    "maxLength": 280,
+                    "nullable": true
+                  },
+                  "username": {
+                    "type": "string",
+                    "pattern": "^[a-z0-9_]{3,20}$"
+                  },
+                  "isPrivate": {
+                    "type": "boolean"
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Perfil actualizado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    },
+                    "email": {
+                      "type": "string"
+                    },
+                    "emailVerified": {
+                      "type": "boolean"
+                    },
+                    "username": {
+                      "type": "string"
+                    },
+                    "displayName": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "bio": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "avatarUrl": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "avatarBlurhash": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "isPrivate": {
+                      "type": "boolean"
+                    },
+                    "updatedAt": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "email",
+                    "emailVerified",
+                    "username",
+                    "displayName",
+                    "bio",
+                    "avatarUrl",
+                    "avatarBlurhash",
+                    "isPrivate",
+                    "updatedAt"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Bearer ausente o cuenta borrada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "statusCode": {
+                      "type": "number"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "error": {
+                      "type": "string"
+                    },
+                    "path": {
+                      "type": "string"
+                    },
+                    "timestamp": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["statusCode", "message", "path", "timestamp"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "username_tomado: ya existe otro usuario con ese username",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "statusCode": {
+                      "type": "number"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "error": {
+                      "type": "string"
+                    },
+                    "path": {
+                      "type": "string"
+                    },
+                    "timestamp": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["statusCode", "message", "path", "timestamp"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "username_reservado o username_cooldown_activo",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "statusCode": {
+                      "type": "number"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "error": {
+                      "type": "string"
+                    },
+                    "path": {
+                      "type": "string"
+                    },
+                    "timestamp": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["statusCode", "message", "path", "timestamp"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        },
+        "summary": "Actualiza el perfil del usuario autenticado",
+        "tags": ["users"]
+      }
+    },
+    "/api/v1/users/me/avatar/presign": {
+      "post": {
+        "description": "RF-4: acepta JPEG/PNG/WebP de hasta 2 MB; devuelve uploadUrl valida 15 min, la key destino y programa el job que genera thumbnail 256px + blurhash.",
+        "operationId": "UsersController_presignAvatar_v1",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "contentType": {
+                    "type": "string",
+                    "enum": ["image/jpeg", "image/png", "image/webp"]
+                  },
+                  "sizeBytes": {
+                    "type": "integer",
+                    "exclusiveMinimum": true,
+                    "maximum": 2097152,
+                    "minimum": 0
+                  }
+                },
+                "required": ["contentType", "sizeBytes"],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "URL de subida emitida y procesamiento programado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "uploadUrl": {
+                      "type": "string",
+                      "format": "uri"
+                    },
+                    "key": {
+                      "type": "string",
+                      "minLength": 8,
+                      "maxLength": 256
+                    },
+                    "expiresIn": {
+                      "type": "integer",
+                      "exclusiveMinimum": true,
+                      "maximum": 9007199254740991,
+                      "minimum": 0
+                    }
+                  },
+                  "required": ["uploadUrl", "key", "expiresIn"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Tipo o peso no admitidos (validation_failed)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "statusCode": {
+                      "type": "number"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "error": {
+                      "type": "string"
+                    },
+                    "path": {
+                      "type": "string"
+                    },
+                    "timestamp": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["statusCode", "message", "path", "timestamp"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Bearer ausente o cuenta borrada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "statusCode": {
+                      "type": "number"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "error": {
+                      "type": "string"
+                    },
+                    "path": {
+                      "type": "string"
+                    },
+                    "timestamp": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["statusCode", "message", "path", "timestamp"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        },
+        "summary": "Emite una URL PUT pre-firmada para el avatar",
+        "tags": ["users"]
+      }
+    },
+    "/api/v1/users/check-username": {
+      "get": {
+        "description": "Publico. Devuelve available=true o el motivo: taken (ocupado), reserved (prohibido) o invalid_format (no cumple 3-20 de a-z0-9_).",
+        "operationId": "UsersController_checkUsername_v1",
+        "parameters": [
+          {
+            "name": "u",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Resultado de disponibilidad",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "available": {
+                      "type": "boolean"
+                    },
+                    "reason": {
+                      "type": "string",
+                      "enum": ["taken", "reserved", "invalid_format"]
+                    }
+                  },
+                  "required": ["available"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        },
+        "summary": "Consulta la disponibilidad de un username",
+        "tags": ["users"]
+      }
+    },
+    "/api/v1/users/{username}": {
+      "get": {
+        "description": "Devuelve la vista completa si el perfil es publico o el espectador es el dueno; ante un perfil privado ajeno entrega solo username, displayName y avatar (RF-5).",
+        "operationId": "UsersController_getProfile_v1",
+        "parameters": [
+          {
+            "name": "username",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Vista minima de un perfil privado ante terceros\n\nVista completa del perfil",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    },
+                    "username": {
+                      "type": "string"
+                    },
+                    "displayName": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "bio": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "avatarUrl": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "avatarBlurhash": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "isPrivate": {
+                      "type": "boolean"
+                    },
+                    "emailVerified": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "username",
+                    "displayName",
+                    "bio",
+                    "avatarUrl",
+                    "avatarBlurhash",
+                    "isPrivate",
+                    "emailVerified"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Username inexistente o cuenta borrada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "statusCode": {
+                      "type": "number"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "error": {
+                      "type": "string"
+                    },
+                    "path": {
+                      "type": "string"
+                    },
+                    "timestamp": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["statusCode", "message", "path", "timestamp"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        },
+        "summary": "Perfil publico por username",
+        "tags": ["users"]
+      }
+    },
     "/api/v1/auth/register": {
       "post": {
         "description": "Crea la cuenta inactiva (emailVerified=false) y encola el email de verificacion (RF-1/RF-2).",

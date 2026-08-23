@@ -143,3 +143,122 @@ export const ResetPasswordResponseSchema = z.object({
 });
 
 export type ResetPasswordResponse = z.infer<typeof ResetPasswordResponseSchema>;
+
+// ---------------------------------------------------------------------------
+// Spec 002 — Usuarios y Perfiles
+// ---------------------------------------------------------------------------
+
+/** RF-2: formato valido de username (se valida junto a reservados/unicidad). */
+export const USERNAME_PATTERN = /^[a-z0-9_]{3,20}$/;
+
+export const UsernameSchema = z
+  .string()
+  .regex(USERNAME_PATTERN, "El username debe tener 3-20 caracteres: a-z, 0-9 o _");
+
+export type Username = z.infer<typeof UsernameSchema>;
+
+export const DisplayNameSchema = z
+  .string()
+  .trim()
+  .min(1, "El nombre visible es obligatorio")
+  .max(50, "El nombre visible no puede exceder 50 caracteres");
+
+export const BioSchema = z.string().trim().max(280, "La bio no puede exceder 280 caracteres");
+
+/** Razones de indisponibilidad de un username para check-username. */
+export const UsernameUnavailableReasonSchema = z.enum(["taken", "reserved", "invalid_format"]);
+
+export type UsernameUnavailableReason = z.infer<typeof UsernameUnavailableReasonSchema>;
+
+export const CheckUsernameResponseSchema = z.object({
+  available: z.boolean(),
+  reason: UsernameUnavailableReasonSchema.optional(),
+});
+
+export type CheckUsernameResponse = z.infer<typeof CheckUsernameResponseSchema>;
+
+/** RF-6: los cambios de perfil quedan auditados con updatedAt. */
+export const MeProfileResponseSchema = z.object({
+  id: z.uuid(),
+  email: z.string(),
+  emailVerified: z.boolean(),
+  username: z.string(),
+  displayName: z.string().nullable(),
+  bio: z.string().nullable(),
+  avatarUrl: z.string().nullable(),
+  avatarBlurhash: z.string().nullable(),
+  isPrivate: z.boolean(),
+  updatedAt: z.string(),
+});
+
+export type MeProfileResponse = z.infer<typeof MeProfileResponseSchema>;
+
+export const UpdateProfileRequestSchema = z
+  .object({
+    displayName: DisplayNameSchema.nullable().optional(),
+    bio: BioSchema.nullable().optional(),
+    username: UsernameSchema.optional(),
+    isPrivate: z.boolean().optional(),
+  })
+  .strict()
+  .refine((data) => Object.keys(data).length > 0, {
+    message: "Debes enviar al menos un campo",
+  });
+
+export type UpdateProfileRequest = z.infer<typeof UpdateProfileRequestSchema>;
+
+/**
+ * Vista publica completa de un perfil (RF-5): el dueno o cualquier visitante
+ * cuando el perfil es publico.
+ */
+export const UserProfileResponseSchema = z.object({
+  id: z.uuid(),
+  username: z.string(),
+  displayName: z.string().nullable(),
+  bio: z.string().nullable(),
+  avatarUrl: z.string().nullable(),
+  avatarBlurhash: z.string().nullable(),
+  isPrivate: z.boolean(),
+  emailVerified: z.boolean(),
+});
+
+export type UserProfileResponse = z.infer<typeof UserProfileResponseSchema>;
+
+/** Vista minima ante terceros cuando el perfil es privado (Gherkin spec §6). */
+export const MinimalProfileResponseSchema = z.object({
+  username: z.string(),
+  displayName: z.string().nullable(),
+  avatarUrl: z.string().nullable(),
+  avatarBlurhash: z.string().nullable(),
+});
+
+export type MinimalProfileResponse = z.infer<typeof MinimalProfileResponseSchema>;
+
+/** Tipos de imagen aceptados para el avatar (RF-4). */
+export const AVATAR_CONTENT_TYPES = ["image/jpeg", "image/png", "image/webp"] as const;
+
+/** Limite de peso del avatar original (RF-4). */
+export const AVATAR_MAX_BYTES = 2 * 1024 * 1024;
+
+export const PresignAvatarRequestSchema = z
+  .object({
+    contentType: z.enum(AVATAR_CONTENT_TYPES, {
+      message: "Solo se aceptan imagenes JPEG, PNG o WebP",
+    }),
+    sizeBytes: z
+      .number()
+      .int()
+      .positive({ message: "El tamaño del archivo debe ser positivo" })
+      .max(AVATAR_MAX_BYTES, "La imagen no puede superar 2 MB"),
+  })
+  .strict();
+
+export type PresignAvatarRequest = z.infer<typeof PresignAvatarRequestSchema>;
+
+export const PresignAvatarResponseSchema = z.object({
+  uploadUrl: z.url(),
+  key: z.string().min(8).max(256),
+  expiresIn: z.number().int().positive(),
+});
+
+export type PresignAvatarResponse = z.infer<typeof PresignAvatarResponseSchema>;
