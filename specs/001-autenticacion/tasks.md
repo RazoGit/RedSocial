@@ -30,7 +30,7 @@
 
 ## Bloque E â€” RecuperaciÃ³n y cierre
 
-- [ ] **T14.** `POST /forgot-password` (202 siempre) + `POST /reset-password` (revoca sesiones, notifica). Tests RF-11, RF-12.
+- [x] **T14.** `POST /forgot-password` (202 siempre) + `POST /reset-password` (revoca sesiones, notifica). Tests RF-11, RF-12.
 - [ ] **T15.** Frontend completo: `/login`, `/register`, `/forgot-password`, `/reset-password` con react-hook-form + Zod, manejo de errores del contrato, estados de carga.
 - [ ] **T16.** E2E Playwright flujo completo (usa Mailpit API para extraer tokens). Ejecutable con `pnpm e2e`.
 - [ ] **T17.** Documentar en README de `apps/api` cÃ³mo probar todo localmente + variables env requeridas. Actualizar OpenAPI exportado y cliente Orval en web.

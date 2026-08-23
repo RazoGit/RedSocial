@@ -3,6 +3,7 @@ import { z } from "zod";
 import {
   AcceptedResponseSchema,
   ApiErrorResponseSchema,
+  ForgotPasswordRequestSchema,
   LoginRequestSchema,
   LoginResponseSchema,
   LogoutResponseSchema,
@@ -11,6 +12,8 @@ import {
   RegisterRequestSchema,
   RegisterResponseSchema,
   ResendVerificationRequestSchema,
+  ResetPasswordRequestSchema,
+  ResetPasswordResponseSchema,
   VerifyEmailRequestSchema,
   VerifyEmailResponseSchema,
 } from "@redsocial/contracts";
@@ -18,6 +21,7 @@ import {
 export type {
   AcceptedResponse,
   ApiErrorResponse,
+  ForgotPasswordRequest,
   LoginRequest,
   LoginResponse,
   LogoutResponse,
@@ -26,6 +30,8 @@ export type {
   RegisterRequest,
   RegisterResponse,
   ResendVerificationRequest,
+  ResetPasswordRequest,
+  ResetPasswordResponse,
   VerifyEmailRequest,
   VerifyEmailResponse,
 } from "@redsocial/contracts";
@@ -64,6 +70,15 @@ export const logoutResponseJsonSchema = z.toJSONSchema(
   LogoutResponseSchema,
 ) as unknown as SchemaObject;
 export const meResponseJsonSchema = z.toJSONSchema(MeResponseSchema) as unknown as SchemaObject;
+export const forgotPasswordRequestJsonSchema = z.toJSONSchema(
+  ForgotPasswordRequestSchema,
+) as unknown as SchemaObject;
+export const resetPasswordRequestJsonSchema = z.toJSONSchema(
+  ResetPasswordRequestSchema,
+) as unknown as SchemaObject;
+export const resetPasswordResponseJsonSchema = z.toJSONSchema(
+  ResetPasswordResponseSchema,
+) as unknown as SchemaObject;
 export const apiErrorResponseJsonSchema = z.toJSONSchema(
   ApiErrorResponseSchema,
 ) as unknown as SchemaObject;

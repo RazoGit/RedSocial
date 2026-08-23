@@ -117,3 +117,29 @@ export const AcceptedResponseSchema = z.object({
 });
 
 export type AcceptedResponse = z.infer<typeof AcceptedResponseSchema>;
+
+/** RF-11: solicitud de recuperacion de contrasena (la respuesta no revela si la cuenta existe). */
+export const ForgotPasswordRequestSchema = z
+  .object({
+    email: z.email({ message: "Email invalido" }).max(254),
+  })
+  .strict();
+
+export type ForgotPasswordRequest = z.infer<typeof ForgotPasswordRequestSchema>;
+
+/** RF-12: restablecimiento con token de un solo uso y la nueva contrasena. */
+export const ResetPasswordRequestSchema = z
+  .object({
+    token: z.string().min(32).max(128),
+    password: PasswordSchema,
+  })
+  .strict();
+
+export type ResetPasswordRequest = z.infer<typeof ResetPasswordRequestSchema>;
+
+/** RF-12: confirmacion de restablecimiento; todas las sesiones quedaron revocadas. */
+export const ResetPasswordResponseSchema = z.object({
+  ok: z.literal(true),
+});
+
+export type ResetPasswordResponse = z.infer<typeof ResetPasswordResponseSchema>;

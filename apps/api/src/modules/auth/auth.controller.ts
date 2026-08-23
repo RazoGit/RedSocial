@@ -16,9 +16,11 @@ import {
 } from "@nestjs/common";
 import { ApiBody, ApiOperation, ApiResponse, ApiTags } from "@nestjs/swagger";
 import {
+  ForgotPasswordRequestSchema,
   LoginRequestSchema,
   RegisterRequestSchema,
   ResendVerificationRequestSchema,
+  ResetPasswordRequestSchema,
   VerifyEmailRequestSchema,
 } from "@redsocial/contracts";
 import type { FastifyReply, FastifyRequest } from "fastify";
@@ -29,6 +31,7 @@ import { AuthService } from "./auth.service";
 import {
   acceptedResponseJsonSchema,
   apiErrorResponseJsonSchema,
+  forgotPasswordRequestJsonSchema,
   loginRequestJsonSchema,
   loginResponseJsonSchema,
   logoutResponseJsonSchema,
@@ -37,8 +40,12 @@ import {
   registerRequestJsonSchema,
   registerResponseJsonSchema,
   resendVerificationRequestJsonSchema,
+  resetPasswordRequestJsonSchema,
+  resetPasswordResponseJsonSchema,
   verifyEmailRequestJsonSchema,
   verifyEmailResponseJsonSchema,
+  type AcceptedResponse,
+  type ForgotPasswordRequest,
   type LoginRequest,
   type LoginResponse,
   type LogoutResponse,
@@ -47,7 +54,8 @@ import {
   type RegisterRequest,
   type RegisterResponse,
   type ResendVerificationRequest,
-  type AcceptedResponse,
+  type ResetPasswordRequest,
+  type ResetPasswordResponse,
   type VerifyEmailRequest,
   type VerifyEmailResponse,
 } from "./dto/auth.dto";
@@ -321,6 +329,58 @@ export class AuthController {
   ): Promise<AcceptedResponse> {
     await this.authService.resendVerification(dto.email);
     return { accepted: true };
+  }
+
+  @Public()
+  @HttpCode(HttpStatus.ACCEPTED)
+  @Post("forgot-password")
+  @ApiOperation({
+    summary: "Solicita un restablecimiento de contrasena",
+    description:
+      "RF-11: responde 202 siempre para no enumerar cuentas. Si existe una cuenta local activa, encola un email con enlace valido durante 1 hora; el token es de un solo uso y invalida los anteriores.",
+  })
+  @ApiBody({ schema: forgotPasswordRequestJsonSchema })
+  @ApiResponse({
+    status: HttpStatus.ACCEPTED,
+    description: "Aceptado (con o sin cuenta asociada)",
+    schema: acceptedResponseJsonSchema,
+  })
+  @ApiResponse({
+    status: HttpStatus.BAD_REQUEST,
+    description: "Payload invalido (validation_failed)",
+    schema: apiErrorResponseJsonSchema,
+  })
+  async forgotPassword(
+    @Body(new ZodValidationPipe(ForgotPasswordRequestSchema)) dto: ForgotPasswordRequest,
+  ): Promise<AcceptedResponse> {
+    await this.authService.forgotPassword(dto.email);
+    return { accepted: true };
+  }
+
+  @Public()
+  @HttpCode(HttpStatus.OK)
+  @Post("reset-password")
+  @ApiOperation({
+    summary: "Restablece la contrasena con el token del email",
+    description:
+      "RF-12: consume el token de un solo uso, guarda la nueva contrasena hasheada (argon2id), revoca TODAS las sesiones activas del usuario y le notifica por email.",
+  })
+  @ApiBody({ schema: resetPasswordRequestJsonSchema })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: "Contrasena actualizada, sesiones revocadas y aviso enviado",
+    schema: resetPasswordResponseJsonSchema,
+  })
+  @ApiResponse({
+    status: HttpStatus.BAD_REQUEST,
+    description: "Token invalido, ya usado o expirado",
+    schema: apiErrorResponseJsonSchema,
+  })
+  async resetPassword(
+    @Body(new ZodValidationPipe(ResetPasswordRequestSchema)) dto: ResetPasswordRequest,
+  ): Promise<ResetPasswordResponse> {
+    await this.authService.resetPassword(dto);
+    return { ok: true };
   }
 
   @HttpCode(HttpStatus.OK)

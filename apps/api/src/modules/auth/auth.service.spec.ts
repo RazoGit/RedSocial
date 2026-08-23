@@ -3,7 +3,7 @@ import { createHash, randomBytes } from "node:crypto";
 import { describe, expect, it, vi } from "vitest";
 
 import { AuthService } from "./auth.service";
-import type { VerificationEmailPayload } from "../email/email.constants";
+import type { PasswordResetEmailPayload, VerificationEmailPayload } from "../email/email.constants";
 import { FakePrisma } from "../../testing/fake-prisma";
 
 function sha256(raw: string): string {
@@ -17,6 +17,8 @@ interface PasswordMock {
 
 interface Deps {
   enqueueVerificationEmail: ReturnType<typeof vi.fn>;
+  enqueuePasswordResetEmail: ReturnType<typeof vi.fn>;
+  enqueuePasswordChangedEmail: ReturnType<typeof vi.fn>;
   createSession: ReturnType<typeof vi.fn>;
   revokeAllForUser: ReturnType<typeof vi.fn>;
   signAccessToken: ReturnType<typeof vi.fn>;
@@ -37,6 +39,8 @@ function buildService(
 } {
   const deps: Deps = {
     enqueueVerificationEmail: vi.fn().mockResolvedValue(undefined),
+    enqueuePasswordResetEmail: vi.fn().mockResolvedValue(undefined),
+    enqueuePasswordChangedEmail: vi.fn().mockResolvedValue(undefined),
     createSession: vi.fn().mockResolvedValue({
       refreshToken: "refresh-crudo",
       sessionId: "ses_1",
@@ -57,9 +61,11 @@ function buildService(
   const service = new AuthService(
     prisma as unknown as ConstructorParameters<typeof AuthService>[0],
     passwordService as unknown as ConstructorParameters<typeof AuthService>[1],
-    { enqueueVerificationEmail: deps.enqueueVerificationEmail } as unknown as ConstructorParameters<
-      typeof AuthService
-    >[2],
+    {
+      enqueueVerificationEmail: deps.enqueueVerificationEmail,
+      enqueuePasswordResetEmail: deps.enqueuePasswordResetEmail,
+      enqueuePasswordChangedEmail: deps.enqueuePasswordChangedEmail,
+    } as unknown as ConstructorParameters<typeof AuthService>[2],
     {
       signAccessToken: deps.signAccessToken,
       accessTtlSeconds: 900,
@@ -336,5 +342,173 @@ describe("AuthService.logout / logoutAll / me (RF-10)", () => {
     prisma.users[0].deletedAt = new Date();
     await expect(service.me(user.id)).rejects.toThrow(UnauthorizedException);
     await expect(service.me("inexistente")).rejects.toThrow(UnauthorizedException);
+  });
+});
+
+describe("AuthService.forgotPassword / resetPassword (RF-11, RF-12)", () => {
+  const FUTURE = new Date(Date.now() + 30 * 24 * 3600 * 1000);
+  const NOW = new Date();
+
+  async function seedSession(
+    prisma: FakePrisma,
+    userId: string,
+    suffix: string,
+  ): Promise<{ id: string; revokedAt: Date | null }> {
+    return prisma.session.create({
+      data: {
+        userId,
+        refreshHash: `hash-${suffix}`,
+        userAgent: null,
+        ip: null,
+        expiresAt: FUTURE,
+        createdAt: NOW,
+        lastUsedAt: NOW,
+      },
+    });
+  }
+
+  /** Ejecuta forgotPassword y devuelve el token crudo capturado del enlace encolado. */
+  async function requestReset(service: AuthService, deps: Deps, email: string): Promise<string> {
+    await service.forgotPassword(email);
+    const payload = deps.enqueuePasswordResetEmail.mock.calls.at(
+      -1,
+    )?.[0] as PasswordResetEmailPayload;
+    return new URL(payload.resetUrl).searchParams.get("token") ?? "";
+  }
+
+  it("forgotPassword crea token hasheado de tipo password_reset y encola el enlace", async () => {
+    const { service, deps, prisma } = buildService();
+    const user = await seedUnverifiedUser(prisma);
+
+    const rawToken = await requestReset(service, deps, user.email);
+
+    expect(rawToken).toHaveLength(43); // 32 bytes base64url
+    const stored = prisma.emailTokens[0];
+    expect(stored.type).toBe("password_reset");
+    expect(stored.tokenHash).toBe(sha256(rawToken));
+    expect(stored.usedAt).toBeNull();
+    // Valido durante 1 h (con margen de reloj de la asercion).
+    expect(stored.expiresAt.getTime()).toBeGreaterThan(Date.now() + 55 * 60 * 1000);
+    expect(deps.enqueuePasswordResetEmail).toHaveBeenCalledWith({
+      to: "ana@example.com",
+      resetUrl: expect.stringContaining(`/reset-password?token=${rawToken}`),
+    });
+    expect(deps.enqueueVerificationEmail).not.toHaveBeenCalled();
+  });
+
+  it("forgotPassword invalida los enlaces anteriores sin usar", async () => {
+    const { service, deps, prisma } = buildService();
+    const user = await seedUnverifiedUser(prisma);
+
+    await requestReset(service, deps, user.email);
+    await requestReset(service, deps, user.email);
+
+    const used = prisma.emailTokens.filter((t) => t.usedAt !== null);
+    const pending = prisma.emailTokens.filter((t) => t.usedAt === null);
+    expect(used).toHaveLength(1);
+    expect(pending).toHaveLength(1);
+  });
+
+  it("forgotPassword es silencioso para un email desconocido", async () => {
+    const { service, deps } = buildService();
+
+    await service.forgotPassword("nadie@example.com");
+
+    expect(deps.enqueuePasswordResetEmail).not.toHaveBeenCalled();
+  });
+
+  it("forgotPassword ignora cuentas borradas y OAuth sin contrasena local", async () => {
+    const { service, deps, prisma } = buildService();
+    const deleted = await prisma.user.create({ data: { email: "borrado@example.com" } });
+    deleted.deletedAt = new Date();
+    await prisma.user.create({ data: { email: "oauth@example.com", passwordHash: null } });
+
+    await service.forgotPassword(deleted.email);
+    await service.forgotPassword("oauth@example.com");
+
+    expect(deps.enqueuePasswordResetEmail).not.toHaveBeenCalled();
+    expect(prisma.emailTokens).toHaveLength(0);
+  });
+
+  it("resetPassword guarda la nueva contrasena hasheada y consume el token", async () => {
+    const { service, deps, prisma } = buildService();
+    const user = await seedUnverifiedUser(prisma);
+    const rawToken = await requestReset(service, deps, user.email);
+
+    await service.resetPassword({ token: rawToken, password: "NuevaContrasena1" });
+
+    const stored = prisma.emailTokens[0];
+    expect(stored.usedAt).not.toBeNull();
+    expect(prisma.users[0].passwordHash).toBe("hash(NuevaContrasena1)");
+  });
+
+  it("resetPassword revoca todas las sesiones activas y notifica por email", async () => {
+    const { service, deps, prisma } = buildService();
+    const user = await seedUnverifiedUser(prisma);
+    await seedSession(prisma, user.id, "a");
+    await seedSession(prisma, user.id, "b");
+    const rawToken = await requestReset(service, deps, user.email);
+
+    await service.resetPassword({ token: rawToken, password: "NuevaContrasena1" });
+
+    expect(prisma.sessions.map((s) => s.revokedAt)).toEqual([expect.any(Date), expect.any(Date)]);
+    expect(deps.enqueuePasswordChangedEmail).toHaveBeenCalledWith({ to: "ana@example.com" });
+  });
+
+  it("resetPassword rechaza un token ya usado sin cambiar nada", async () => {
+    const { service, deps, prisma } = buildService();
+    const user = await seedUnverifiedUser(prisma);
+    const rawToken = await requestReset(service, deps, user.email);
+    await service.resetPassword({ token: rawToken, password: "NuevaContrasena1" });
+    const hashAfterFirst = prisma.users[0].passwordHash;
+
+    await expect(
+      service.resetPassword({ token: rawToken, password: "OtraContrasena2" }),
+    ).rejects.toThrow(new BadRequestException("Token invalido o expirado"));
+    expect(prisma.users[0].passwordHash).toBe(hashAfterFirst);
+  });
+
+  it("resetPassword rechaza tokens ajenos, vencidos o de otro tipo", async () => {
+    const { service, deps, prisma } = buildService();
+    const user = await seedUnverifiedUser(prisma);
+    await requestReset(service, deps, user.email);
+
+    // Token inexistente
+    await expect(
+      service.resetPassword({ token: randomBytes(32).toString("base64url"), password: "Nueva1" }),
+    ).rejects.toThrow(BadRequestException);
+
+    // Expirado
+    const expiredRaw = randomBytes(32).toString("base64url");
+    await prisma.emailToken.create({
+      data: {
+        userId: user.id,
+        tokenHash: sha256(expiredRaw),
+        type: "password_reset",
+        expiresAt: new Date(Date.now() - 1000),
+        usedAt: null,
+      },
+    });
+    await expect(
+      service.resetPassword({ token: expiredRaw, password: "NuevaContrasena1" }),
+    ).rejects.toThrow(BadRequestException);
+
+    // Tipo verify_email
+    const verifyRaw = randomBytes(32).toString("base64url");
+    await prisma.emailToken.create({
+      data: {
+        userId: user.id,
+        tokenHash: sha256(verifyRaw),
+        type: "verify_email",
+        expiresAt: FUTURE,
+        usedAt: null,
+      },
+    });
+    await expect(
+      service.resetPassword({ token: verifyRaw, password: "NuevaContrasena1" }),
+    ).rejects.toThrow(BadRequestException);
+
+    expect(prisma.users[0].passwordHash).toBe("h");
+    expect(deps.enqueuePasswordChangedEmail).not.toHaveBeenCalled();
   });
 });

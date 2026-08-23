@@ -12,6 +12,7 @@ import type {
   MeResponse,
   RegisterRequest,
   RegisterResponse,
+  ResetPasswordRequest,
 } from "@redsocial/contracts";
 
 import { EmailService } from "../email/email.service";
@@ -23,6 +24,9 @@ import { TokensService } from "./tokens.service";
 
 /** Regla de negocio spec 001 §5: tokens de verificacion expiran en 24 h. */
 const VERIFY_EMAIL_TTL_MS = 24 * 60 * 60 * 1000;
+
+/** RF-11: el enlace de recuperacion es valido durante 1 h. */
+const PASSWORD_RESET_TTL_MS = 60 * 60 * 1000;
 
 /**
  * Mensaje 409 generico: no revela si el email ya tiene cuenta activa,
@@ -130,6 +134,76 @@ export class AuthService {
     });
 
     await this.enqueueVerificationEmail(user);
+  }
+
+  /**
+   * RF-11: solicita restablecimiento. Responde en silencio (el controller
+   * devuelve 202 igual) para no enumerar cuentas: emails desconocidos,
+   * borrados o cuentas OAuth sin contrasena local no generan token.
+   */
+  async forgotPassword(email: string): Promise<void> {
+    const user = await this.prisma.user.findUnique({ where: { email } });
+    if (!user || user.deletedAt !== null || user.passwordHash === null) {
+      return;
+    }
+
+    // Un solo enlace vigente: invalida los password_reset sin usar anteriores.
+    await this.prisma.emailToken.updateMany({
+      where: { userId: user.id, type: "password_reset", usedAt: null },
+      data: { usedAt: new Date() },
+    });
+
+    const rawToken = randomBytes(32).toString("base64url");
+    const expiresAt = new Date(Date.now() + PASSWORD_RESET_TTL_MS);
+    await this.prisma.emailToken.create({
+      data: {
+        userId: user.id,
+        tokenHash: this.sha256(rawToken),
+        type: "password_reset",
+        expiresAt,
+      },
+    });
+
+    const appUrl = process.env.APP_URL ?? "http://localhost:3000";
+    await this.emailService.enqueuePasswordResetEmail({
+      to: user.email,
+      resetUrl: `${appUrl}/reset-password?token=${rawToken}`,
+    });
+  }
+
+  /**
+   * RF-12: consume un token de recuperacion valido, re-hashea la contrasena,
+   * revoca TODAS las sesiones activas del usuario y notifica por email.
+   */
+  async resetPassword(dto: ResetPasswordRequest): Promise<void> {
+    const record = await this.prisma.emailToken.findUnique({
+      where: { tokenHash: this.sha256(dto.token) },
+      include: { user: true },
+    });
+
+    const now = new Date();
+    if (
+      !record ||
+      record.type !== "password_reset" ||
+      record.usedAt !== null ||
+      record.expiresAt.getTime() <= now.getTime() ||
+      !record.user ||
+      record.user.deletedAt !== null
+    ) {
+      throw new BadRequestException(INVALID_TOKEN_MESSAGE);
+    }
+
+    const passwordHash = await this.passwordService.hashPassword(dto.password);
+    await this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+      await tx.emailToken.update({ where: { id: record.id }, data: { usedAt: now } });
+      await tx.user.update({ where: { id: record.userId }, data: { passwordHash } });
+      await tx.session.updateMany({
+        where: { userId: record.userId, revokedAt: null },
+        data: { revokedAt: now },
+      });
+    });
+
+    await this.emailService.enqueuePasswordChangedEmail({ to: record.user.email });
   }
 
   /**
