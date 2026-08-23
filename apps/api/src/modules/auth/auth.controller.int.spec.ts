@@ -1,5 +1,5 @@
 import { VersioningType, type INestApplication } from "@nestjs/common";
-import { FastifyAdapter, type NestFastifyApplication } from "@nestjs/platform-fastify";
+import { FastifyAdapter } from "@nestjs/platform-fastify";
 import { Test } from "@nestjs/testing";
 import request from "supertest";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -7,22 +7,23 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { AppModule } from "../../app.module";
 import { PrismaService } from "../prisma/prisma.service";
 import { TokensService } from "./tokens.service";
+import { FakePrisma } from "../../testing/fake-prisma";
 
 describe("AuthController /auth/me (integracion)", () => {
   let app: INestApplication;
+  const prisma = new FakePrisma();
 
   beforeAll(async () => {
+    await prisma.user.create({ data: { email: "int@example.com", passwordHash: "h" } });
+
     const moduleRef = await Test.createTestingModule({
       imports: [AppModule],
     })
       .overrideProvider(PrismaService)
-      .useValue({
-        $connect: async (): Promise<void> => {},
-        $disconnect: async (): Promise<void> => {},
-      })
+      .useValue(prisma)
       .compile();
 
-    app = moduleRef.createNestApplication<NestFastifyApplication>(new FastifyAdapter());
+    app = moduleRef.createNestApplication<INestApplication>(new FastifyAdapter());
     app.setGlobalPrefix("api");
     app.enableVersioning({ type: VersioningType.URI, defaultVersion: "1" });
     await app.init();
@@ -43,11 +44,11 @@ describe("AuthController /auth/me (integracion)", () => {
     expect(typeof res.body.timestamp).toBe("string");
   });
 
-  it("devuelve el payload con un Bearer valido", async () => {
+  it("devuelve el perfil publico con un Bearer valido", async () => {
     const tokens = app.get(TokensService);
     const token = await tokens.signAccessToken({
-      sub: "usr_int_1",
-      email: "int@example.com",
+      sub: prisma.users[0].id,
+      email: prisma.users[0].email,
     });
 
     const res = await request(app.getHttpServer())
@@ -55,8 +56,11 @@ describe("AuthController /auth/me (integracion)", () => {
       .set("Authorization", `Bearer ${token}`);
 
     expect(res.status).toBe(200);
-    expect(res.body.user?.sub).toBe("usr_int_1");
-    expect(res.body.user?.email).toBe("int@example.com");
+    expect(res.body).toEqual({
+      id: prisma.users[0].id,
+      email: "int@example.com",
+      emailVerified: false,
+    });
   });
 
   it("deja /health publica pese al guard global", async () => {

@@ -4,6 +4,8 @@ import { SignJWT, jwtVerify } from "jose";
 export interface AccessTokenPayload {
   sub: string;
   email?: string;
+  /** Id de la sesion que emitio el token; permite a /logout revocar solo esa sesion (RF-10). */
+  sid?: string;
 }
 
 const JWT_ISSUER = "redsocial-api";
@@ -28,7 +30,10 @@ export class TokensService {
   }
 
   async signAccessToken(payload: AccessTokenPayload): Promise<string> {
-    return new SignJWT({ email: payload.email })
+    return new SignJWT({
+      email: payload.email,
+      ...(payload.sid !== undefined && { sid: payload.sid }),
+    })
       .setProtectedHeader({ alg: "HS256" })
       .setSubject(payload.sub)
       .setIssuedAt()

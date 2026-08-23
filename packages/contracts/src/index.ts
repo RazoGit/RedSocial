@@ -99,6 +99,18 @@ export const ResendVerificationRequestSchema = z
 
 export type ResendVerificationRequest = z.infer<typeof ResendVerificationRequestSchema>;
 
+/** RF-10: confirmacion de cierre de sesion (individual o global). */
+export const LogoutResponseSchema = z.object({
+  ok: z.literal(true),
+});
+
+export type LogoutResponse = z.infer<typeof LogoutResponseSchema>;
+
+/** Perfil publico del usuario autenticado para el frontend (GET /me). */
+export const MeResponseSchema = RegisterResponseSchema;
+
+export type MeResponse = z.infer<typeof MeResponseSchema>;
+
 /** Respuesta generica 202 para endpoints que no revelan estado (anti-enumeracion). */
 export const AcceptedResponseSchema = z.object({
   accepted: z.literal(true),

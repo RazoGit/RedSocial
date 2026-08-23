@@ -7,7 +7,12 @@ import {
 import { Prisma } from "@prisma/client";
 import { createHash, randomBytes } from "node:crypto";
 
-import type { LoginRequest, RegisterRequest, RegisterResponse } from "@redsocial/contracts";
+import type {
+  LoginRequest,
+  MeResponse,
+  RegisterRequest,
+  RegisterResponse,
+} from "@redsocial/contracts";
 
 import { EmailService } from "../email/email.service";
 import { PrismaService } from "../prisma/prisma.service";
@@ -183,6 +188,7 @@ export class AuthService {
     const accessToken = await this.tokensService.signAccessToken({
       sub: user.id,
       email: user.email ?? undefined,
+      sid: session.sessionId,
     });
     return {
       accessToken,
@@ -206,6 +212,7 @@ export class AuthService {
     const accessToken = await this.tokensService.signAccessToken({
       sub: user.id,
       email: user.email ?? undefined,
+      sid: rotated.sessionId,
     });
     return {
       accessToken,
@@ -213,6 +220,37 @@ export class AuthService {
       refreshToken: rotated.refreshToken,
       csrfToken: this.newCsrfToken(),
     };
+  }
+
+  /**
+   * RF-10 (logout): revoca la sesion identificada por el claim sid del access
+   * token, sin tocar las demas sesiones del usuario. Tokens previos a la
+   * inclusion de sid no revocan nada (la sesion caduca sola); el controller
+   * limpia las cookies en cualquier caso.
+   */
+  async logout(userId: string, sessionId?: string): Promise<void> {
+    if (!sessionId) return;
+    await this.prisma.session.updateMany({
+      where: { id: sessionId, userId, revokedAt: null },
+      data: { revokedAt: new Date() },
+    });
+  }
+
+  /** RF-10 (logout-all): revoca todas las sesiones activas del usuario. */
+  async logoutAll(userId: string): Promise<void> {
+    await this.sessionsService.revokeAllForUser(userId);
+  }
+
+  /** GET /me: perfil publico del usuario del access token (usado por el frontend). */
+  async me(userId: string): Promise<MeResponse> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, email: true, emailVerified: true, deletedAt: true },
+    });
+    if (!user || user.deletedAt !== null) {
+      throw new UnauthorizedException("user_not_found");
+    }
+    return { id: user.id, email: user.email, emailVerified: user.emailVerified };
   }
 
   /** Token csrf crudo para la cookie legible y el cuerpo de la respuesta. */

@@ -221,14 +221,16 @@ export class FakePrisma {
       where,
       data,
     }: {
-      where: { userId?: string; id?: { in: string[] }; revokedAt?: null };
+      where: { userId?: string; id?: string | { in: string[] }; revokedAt?: null };
       data: Partial<Omit<FakeSessionRow, "id">>;
     }): Promise<{ count: number }> => {
       let count = 0;
+      const wantedIds = typeof where.id === "string" ? [where.id] : where.id?.in;
       for (const session of this.sessions) {
         const matchesUser = where.userId === undefined || session.userId === where.userId;
-        const matchesId = where.id === undefined || (where.id.in?.includes(session.id) ?? false);
-        if (matchesUser && matchesId) {
+        const matchesId = where.id === undefined || (wantedIds?.includes(session.id) ?? false);
+        const matchesRevoked = where.revokedAt === undefined || session.revokedAt === null;
+        if (matchesUser && matchesId && matchesRevoked) {
           Object.assign(session, data);
           count += 1;
         }

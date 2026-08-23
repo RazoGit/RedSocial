@@ -40,6 +40,17 @@ describe("TokensService", () => {
     await expect(service.verifyAccessToken(tampered)).rejects.toThrow();
   });
 
+  it("incluye el claim sid solo cuando se indica (RF-10)", async () => {
+    const service = new TokensService();
+    const withSid = await service.signAccessToken({ sub: "usr_123", sid: "ses_9" });
+    const payloadWithSid = await service.verifyAccessToken(withSid);
+    expect((payloadWithSid as unknown as Record<string, unknown>)["sid"]).toBe("ses_9");
+
+    const withoutSid = await service.signAccessToken({ sub: "usr_123" });
+    const payloadWithoutSid = await service.verifyAccessToken(withoutSid);
+    expect((payloadWithoutSid as unknown as Record<string, unknown>)["sid"]).toBeUndefined();
+  });
+
   it("acepta tokens expirados dentro del margen de reloj de 30 s", async () => {
     const service = new TokensService();
     const almostExpired = await craftToken(new Date(Date.now() - 10 * 1000));

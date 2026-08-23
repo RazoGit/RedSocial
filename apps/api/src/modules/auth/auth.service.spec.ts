@@ -18,6 +18,7 @@ interface PasswordMock {
 interface Deps {
   enqueueVerificationEmail: ReturnType<typeof vi.fn>;
   createSession: ReturnType<typeof vi.fn>;
+  revokeAllForUser: ReturnType<typeof vi.fn>;
   signAccessToken: ReturnType<typeof vi.fn>;
   verifyPassword: ReturnType<typeof vi.fn>;
 }
@@ -41,6 +42,7 @@ function buildService(
       sessionId: "ses_1",
       expiresAt: new Date(Date.now() + 30 * 24 * 3600 * 1000),
     }),
+    revokeAllForUser: vi.fn().mockResolvedValue(undefined),
     signAccessToken: vi.fn().mockResolvedValue("access.jwt.firmado"),
     verifyPassword: vi.fn().mockResolvedValue(true),
   };
@@ -62,7 +64,10 @@ function buildService(
       signAccessToken: deps.signAccessToken,
       accessTtlSeconds: 900,
     } as unknown as ConstructorParameters<typeof AuthService>[3],
-    { create: deps.createSession } as unknown as ConstructorParameters<typeof AuthService>[4],
+    {
+      create: deps.createSession,
+      revokeAllForUser: deps.revokeAllForUser,
+    } as unknown as ConstructorParameters<typeof AuthService>[4],
   );
 
   return { service, deps, prisma };
@@ -245,5 +250,91 @@ describe("AuthService.resendVerification", () => {
 
     await service.resendVerification("ana@example.com");
     expect(deps.enqueueVerificationEmail).not.toHaveBeenCalled();
+  });
+});
+
+describe("AuthService.logout / logoutAll / me (RF-10)", () => {
+  const FUTURE = new Date(Date.now() + 30 * 24 * 3600 * 1000);
+  const NOW = new Date();
+
+  function seedSession(
+    prisma: FakePrisma,
+    userId: string,
+    suffix: string,
+  ): Promise<{ id: string; revokedAt: Date | null }> {
+    return prisma.session.create({
+      data: {
+        userId,
+        refreshHash: `hash-${suffix}`,
+        userAgent: null,
+        ip: null,
+        expiresAt: FUTURE,
+        createdAt: NOW,
+        lastUsedAt: NOW,
+      },
+    });
+  }
+
+  it("logout revoca solo la sesion indicada del usuario", async () => {
+    const { service, prisma } = buildService();
+    const user = await seedUnverifiedUser(prisma);
+    const target = await seedSession(prisma, user.id, "a");
+    const other = await seedSession(prisma, user.id, "b");
+
+    await service.logout(user.id, target.id);
+
+    expect(prisma.sessions.find((s) => s.id === target.id)?.revokedAt).not.toBeNull();
+    expect(prisma.sessions.find((s) => s.id === other.id)?.revokedAt).toBeNull();
+  });
+
+  it("logout ignora sesiones de otro usuario", async () => {
+    const { service, prisma } = buildService();
+    const owner = await seedUnverifiedUser(prisma);
+    const intruder = await prisma.user.create({ data: { email: "otto@example.com" } });
+    const foreign = await seedSession(prisma, intruder.id, "x");
+
+    await service.logout(owner.id, foreign.id);
+
+    expect(prisma.sessions[0].revokedAt).toBeNull();
+  });
+
+  it("logout sin sid no toca la base de datos", async () => {
+    const { service, prisma } = buildService();
+    const user = await seedUnverifiedUser(prisma);
+    const session = await seedSession(prisma, user.id, "a");
+
+    await service.logout(user.id);
+
+    expect(prisma.sessions[0].id).toBe(session.id);
+    expect(prisma.sessions[0].revokedAt).toBeNull();
+  });
+
+  it("logoutAll revoca todas las sesiones activas", async () => {
+    const { service, deps, prisma } = buildService();
+    const user = await seedUnverifiedUser(prisma);
+    await seedSession(prisma, user.id, "a");
+    await seedSession(prisma, user.id, "b");
+
+    await service.logoutAll(user.id);
+
+    expect(deps.revokeAllForUser).toHaveBeenCalledWith(user.id);
+  });
+
+  it("me devuelve el perfil publico del usuario", async () => {
+    const { service, prisma } = buildService();
+    const user = await seedUnverifiedUser(prisma);
+
+    const profile = await service.me(user.id);
+
+    expect(profile).toEqual({ id: user.id, email: "ana@example.com", emailVerified: false });
+  });
+
+  it("me lanza 401 si el usuario fue borrado o no existe", async () => {
+    const { service, prisma } = buildService();
+    const user = await seedUnverifiedUser(prisma);
+
+    prisma.users[0].deletedAt = new Date();
+    await expect(service.me(user.id)).rejects.toThrow(UnauthorizedException);
+    await expect(service.me("inexistente")).rejects.toThrow(UnauthorizedException);
   });
 });

@@ -28,6 +28,8 @@ import {
   apiErrorResponseJsonSchema,
   loginRequestJsonSchema,
   loginResponseJsonSchema,
+  logoutResponseJsonSchema,
+  meResponseJsonSchema,
   refreshResponseJsonSchema,
   registerRequestJsonSchema,
   registerResponseJsonSchema,
@@ -36,6 +38,8 @@ import {
   verifyEmailResponseJsonSchema,
   type LoginRequest,
   type LoginResponse,
+  type LogoutResponse,
+  type MeResponse,
   type RefreshResponse,
   type RegisterRequest,
   type RegisterResponse,
@@ -79,6 +83,20 @@ export class AuthController {
     const cookies = (request as unknown as { cookies?: Record<string, string | undefined> })
       .cookies;
     return cookies?.[name];
+  }
+
+  /** D6 (double-submit): el header X-CSRF-Token debe igualar la cookie csrf_token. */
+  private assertCsrf(request: FastifyRequest): void {
+    const csrfHeader = request.headers["x-csrf-token"];
+    const headerValue = Array.isArray(csrfHeader) ? csrfHeader[0] : csrfHeader;
+    const cookieValue = this.cookieFrom(request, CSRF_COOKIE_NAME);
+    if (
+      typeof headerValue !== "string" ||
+      headerValue.length === 0 ||
+      headerValue !== cookieValue
+    ) {
+      throw new ForbiddenException("csrf_invalid");
+    }
   }
 
   /** Emision de sesion: cookies rt+csrf y cuerpo con access/csrfToken. */
@@ -246,16 +264,7 @@ export class AuthController {
     @Req() request: RequestWithUser,
     @Res({ passthrough: true }) reply: FastifyReply,
   ): Promise<RefreshResponse> {
-    const csrfHeader = request.headers["x-csrf-token"];
-    const headerValue = Array.isArray(csrfHeader) ? csrfHeader[0] : csrfHeader;
-    const cookieValue = this.cookieFrom(request, CSRF_COOKIE_NAME);
-    if (
-      typeof headerValue !== "string" ||
-      headerValue.length === 0 ||
-      headerValue !== cookieValue
-    ) {
-      throw new ForbiddenException("csrf_invalid");
-    }
+    this.assertCsrf(request);
 
     const rawRefresh = this.cookieFrom(request, REFRESH_COOKIE_NAME);
     if (!rawRefresh) {
@@ -293,10 +302,97 @@ export class AuthController {
     return { accepted: true };
   }
 
-  /** Endpoint dummy protegido para validar el guard global (T5). */
+  @HttpCode(HttpStatus.OK)
+  @Post("logout")
+  @ApiOperation({
+    summary: "Cierra la sesion actual",
+    description:
+      "RF-10: revoca la sesion identificada por el claim sid del access token y limpia las cookies rt y csrf_token. Requiere header X-CSRF-Token igual a la cookie csrf_token (D6).",
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: "Sesion revocada y cookies eliminadas",
+    schema: logoutResponseJsonSchema,
+  })
+  @ApiResponse({
+    status: HttpStatus.UNAUTHORIZED,
+    description: "Bearer ausente o invalido",
+    schema: apiErrorResponseJsonSchema,
+  })
+  @ApiResponse({
+    status: HttpStatus.FORBIDDEN,
+    description: "Header X-CSRF-Token ausente o distinto de la cookie csrf_token",
+    schema: apiErrorResponseJsonSchema,
+  })
+  async logout(
+    @Req() request: RequestWithUser,
+    @Res({ passthrough: true }) reply: FastifyReply,
+  ): Promise<LogoutResponse> {
+    this.assertCsrf(request);
+    const payload = request.user;
+    if (!payload) throw new UnauthorizedException("missing_bearer_token");
+
+    await this.authService.logout(payload.sub, payload.sid);
+    this.refreshCookie.clear(reply);
+    this.csrfCookie.clear(reply);
+    return { ok: true };
+  }
+
+  @HttpCode(HttpStatus.OK)
+  @Post("logout-all")
+  @ApiOperation({
+    summary: "Cierra todas las sesiones del usuario",
+    description:
+      "RF-10: revoca todas las sesiones activas del usuario autenticado (incluida la actual) y limpia las cookies rt y csrf_token. Requiere header X-CSRF-Token igual a la cookie csrf_token (D6).",
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: "Todas las sesiones revocadas y cookies eliminadas",
+    schema: logoutResponseJsonSchema,
+  })
+  @ApiResponse({
+    status: HttpStatus.UNAUTHORIZED,
+    description: "Bearer ausente o invalido",
+    schema: apiErrorResponseJsonSchema,
+  })
+  @ApiResponse({
+    status: HttpStatus.FORBIDDEN,
+    description: "Header X-CSRF-Token ausente o distinto de la cookie csrf_token",
+    schema: apiErrorResponseJsonSchema,
+  })
+  async logoutAll(
+    @Req() request: RequestWithUser,
+    @Res({ passthrough: true }) reply: FastifyReply,
+  ): Promise<LogoutResponse> {
+    this.assertCsrf(request);
+    const payload = request.user;
+    if (!payload) throw new UnauthorizedException("missing_bearer_token");
+
+    await this.authService.logoutAll(payload.sub);
+    this.refreshCookie.clear(reply);
+    this.csrfCookie.clear(reply);
+    return { ok: true };
+  }
+
+  /** Perfil publico del usuario autenticado; el frontend lo usa al arrancar. */
   @Get("me")
-  @ApiOperation({ summary: "Devuelve el payload del access token actual" })
-  me(@Req() request: RequestWithUser): { user: AccessTokenPayload | null } {
-    return { user: request.user ?? null };
+  @ApiOperation({
+    summary: "Perfil publico del usuario autenticado",
+    description: "Requiere access token Bearer valido; responde 401 si la cuenta ya no existe.",
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: "Perfil publico del usuario del token",
+    schema: meResponseJsonSchema,
+  })
+  @ApiResponse({
+    status: HttpStatus.UNAUTHORIZED,
+    description: "Token ausente/invalido o cuenta borrada",
+    schema: apiErrorResponseJsonSchema,
+  })
+  me(@Req() request: RequestWithUser): Promise<MeResponse> {
+    const payload = request.user;
+    if (!payload) throw new UnauthorizedException("missing_bearer_token");
+    return this.authService.me(payload.sub);
   }
 }
