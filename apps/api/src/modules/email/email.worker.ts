@@ -1,15 +1,16 @@
 import { Inject, Injectable } from "@nestjs/common";
-import { WorkerHost } from "@nestjs/bullmq";
+import { Processor, WorkerHost } from "@nestjs/bullmq";
 import type { Job } from "bullmq";
 import type { Transporter } from "nodemailer";
 
-import { MAIL_TRANSPORTER, type EmailPayload } from "./email.constants";
+import { EMAIL_QUEUE, MAIL_TRANSPORTER, type EmailPayload } from "./email.constants";
 
 /**
  * Worker inline temporal (spec 001, §9 Dependencias): consume la cola `email`
  * dentro del proceso API en dev y envia via SMTP al Mailpit local.
  * El consumer definitivo vive en apps/workers (Fase 8); este se retira entonces.
  */
+@Processor(EMAIL_QUEUE)
 @Injectable()
 export class EmailWorker extends WorkerHost {
   constructor(@Inject(MAIL_TRANSPORTER) private readonly transporter: Transporter) {
