@@ -10,8 +10,11 @@ import {
 import { CsrfCookieService } from "./services/csrf-cookie.service";
 import { OauthClientService } from "./services/oauth-client.service";
 import { OauthConfigService } from "./services/oauth-config.service";
+import { OauthService } from "./services/oauth.service";
 import { OauthStateService } from "./services/oauth-state.service";
 import { RefreshCookieService } from "./services/refresh-cookie.service";
+import { GithubOauthStrategy } from "./strategies/github.oauth";
+import { GoogleOauthStrategy } from "./strategies/google.oauth";
 import { PasswordService } from "./services/password.service";
 import { SessionsService } from "./sessions.service";
 import { TokensService } from "./tokens.service";
@@ -31,6 +34,9 @@ import { TokensService } from "./tokens.service";
     OauthConfigService,
     OauthClientService,
     OauthStateService,
+    OauthService,
+    GoogleOauthStrategy,
+    GithubOauthStrategy,
   ],
   exports: [TokensService],
 })

@@ -258,6 +258,17 @@ export class AuthService {
     return randomBytes(32).toString("base64url");
   }
 
+  /**
+   * Emision de sesion para un usuario ya autenticado por otro medio
+   * (OAuth T12): misma forma RF-6 que login/verify-email.
+   */
+  emitSessionFor(
+    user: { id: string; email?: string | null },
+    meta: SessionMeta,
+  ): Promise<IssuedTokens> {
+    return this.issueSession(user, meta);
+  }
+
   private sha256(raw: string): string {
     return createHash("sha256").update(raw).digest("hex");
   }

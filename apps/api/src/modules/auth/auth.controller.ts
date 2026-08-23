@@ -9,6 +9,7 @@ import {
   HttpException,
   Param,
   Post,
+  Query,
   Req,
   Res,
   UnauthorizedException,
@@ -56,7 +57,11 @@ import { LoginRateLimiterService } from "./services/login-rate-limiter.service";
 import { isOAuthProviderId } from "./services/oauth-config.service";
 import { OauthClientService } from "./services/oauth-client.service";
 import { OauthConfigService } from "./services/oauth-config.service";
-import { OauthStateService } from "./services/oauth-state.service";
+import { OauthService } from "./services/oauth.service";
+import { OAUTH_STATE_COOKIE_NAME, OauthStateService } from "./services/oauth-state.service";
+import type { OAuthProviderMap } from "./strategies/oauth-strategy.types";
+import { GithubOauthStrategy } from "./strategies/github.oauth";
+import { GoogleOauthStrategy } from "./strategies/google.oauth";
 import { RefreshCookieService, REFRESH_COOKIE_NAME } from "./services/refresh-cookie.service";
 import type { AccessTokenPayload } from "./tokens.service";
 
@@ -75,7 +80,14 @@ export class AuthController {
     private readonly oauthConfig: OauthConfigService,
     private readonly oauthClient: OauthClientService,
     private readonly oauthState: OauthStateService,
-  ) {}
+    private readonly oauthUsers: OauthService,
+    googleStrategy: GoogleOauthStrategy,
+    githubStrategy: GithubOauthStrategy,
+  ) {
+    this.oauthStrategies = { google: googleStrategy, github: githubStrategy };
+  }
+
+  private readonly oauthStrategies: OAuthProviderMap;
 
   /** RF-6 (registro de sesion): UA e IP del cliente para la fila de sesion. */
   private metaFrom(request: FastifyRequest): SessionMeta {
@@ -441,5 +453,79 @@ export class AuthController {
 
     this.oauthState.set(reply, issued.cookieValue);
     await reply.redirect(authorizeUrl, HttpStatus.FOUND);
+  }
+
+  @Public()
+  @Get("oauth/:provider/callback")
+  @ApiOperation({
+    summary: "Callback OAuth: canjea el code y emite la sesion (RF-9)",
+    description:
+      "Verifica el state contra la cookie firmada (un solo uso), canjea code por identidad verificada del proveedor (id_token/JWKS en Google; /user+/user/emails en GitHub), vincula por email verificado o crea cuenta verificada, y ejecuta RF-6: cookies rt+csrf_token y redirect al frontend con tokens en el fragmento.",
+  })
+  @ApiResponse({
+    status: HttpStatus.FOUND,
+    description:
+      "Redirect a {APP_URL}/auth/callback#access=...&expires_in=...&csrf=...; Set-Cookie rt (httpOnly) y csrf_token",
+  })
+  @ApiResponse({
+    status: HttpStatus.BAD_REQUEST,
+    description: "Proveedor desconocido o code ausente",
+    schema: apiErrorResponseJsonSchema,
+  })
+  @ApiResponse({
+    status: HttpStatus.UNAUTHORIZED,
+    description:
+      "State invalido/reutilizado, id_token invalido, nonce incorrecto o email sin verificar en el proveedor",
+    schema: apiErrorResponseJsonSchema,
+  })
+  @ApiResponse({
+    status: HttpStatus.BAD_GATEWAY,
+    description: "El proveedor rechazo el canje o no esta disponible",
+    schema: apiErrorResponseJsonSchema,
+  })
+  async oauthCallback(
+    @Param("provider") provider: string,
+    @Query("code") code: string | undefined,
+    @Query("state") state: string | undefined,
+    @Req() request: RequestWithUser,
+    @Res() reply: FastifyReply,
+  ): Promise<void> {
+    if (!isOAuthProviderId(provider)) {
+      throw new BadRequestException("proveedor_no_soportado");
+    }
+
+    let nonce: string | undefined;
+    try {
+      ({ nonce } = await this.oauthState.verify(
+        this.cookieFrom(request, OAUTH_STATE_COOKIE_NAME),
+        provider,
+        state,
+      ));
+    } catch (error) {
+      this.oauthState.clear(reply);
+      throw error;
+    }
+    // El state es de un solo uso: se consume siempre tras verificar.
+    this.oauthState.clear(reply);
+
+    if (!code) {
+      throw new BadRequestException("oauth_code_ausente");
+    }
+
+    const redirectUri = `${this.oauthConfig.apiBaseUrl()}/api/v1/auth/oauth/${provider}/callback`;
+    const profile = await this.oauthStrategies[provider].exchangeCode(code, redirectUri, nonce);
+    const user = await this.oauthUsers.linkOrCreate(provider, profile);
+    const issued = await this.authService.emitSessionFor(user, this.metaFrom(request));
+
+    this.refreshCookie.set(reply, issued.refreshToken);
+    this.csrfCookie.set(reply, issued.csrfToken);
+
+    // El fragmento (#) nunca llega al servidor: lugar seguro para el access token.
+    const fragment = new URLSearchParams({
+      access: issued.accessToken,
+      expires_in: String(issued.expiresIn),
+      csrf: issued.csrfToken,
+    }).toString();
+    await reply.redirect(`${this.oauthConfig.frontendCallbackUrl()}#${fragment}`, HttpStatus.FOUND);
   }
 }

@@ -38,6 +38,14 @@ export interface FakeSessionRow {
   replacedByHash: string | null;
 }
 
+export interface FakeOauthAccountRow {
+  id: string;
+  userId: string;
+  provider: string;
+  providerAccountId: string;
+  createdAt: Date;
+}
+
 interface UniqueConstraintError extends Error {
   code: string;
 }
@@ -50,6 +58,7 @@ export class FakePrisma {
   readonly users: FakeUserRow[] = [];
   readonly emailTokens: FakeEmailTokenRow[] = [];
   readonly sessions: FakeSessionRow[] = [];
+  readonly oauthAccounts: FakeOauthAccountRow[] = [];
 
   readonly user = {
     findUnique: async ({
@@ -66,7 +75,7 @@ export class FakePrisma {
     create: async ({
       data,
     }: {
-      data: { email: string; passwordHash?: string | null };
+      data: { email: string; passwordHash?: string | null; emailVerified?: boolean };
     }): Promise<FakeUserRow> => {
       if (this.users.some((u) => u.email.toLowerCase() === data.email.toLowerCase())) {
         throw uniqueConstraintError();
@@ -75,7 +84,7 @@ export class FakePrisma {
         id: randomUUID(),
         email: data.email,
         passwordHash: data.passwordHash ?? null,
-        emailVerified: false,
+        emailVerified: data.emailVerified ?? false,
         deletedAt: null,
       };
       this.users.push(row);
@@ -236,6 +245,40 @@ export class FakePrisma {
         }
       }
       return { count };
+    },
+  };
+
+  readonly oauthAccount = {
+    findUnique: async ({
+      where,
+    }: {
+      where: { provider_providerAccountId: { provider: string; providerAccountId: string } };
+    }): Promise<FakeOauthAccountRow | null> =>
+      this.oauthAccounts.find(
+        (a) =>
+          a.provider === where.provider_providerAccountId.provider &&
+          a.providerAccountId === where.provider_providerAccountId.providerAccountId,
+      ) ?? null,
+
+    create: async ({
+      data,
+    }: {
+      data: { userId: string; provider: string; providerAccountId: string };
+    }): Promise<FakeOauthAccountRow> => {
+      if (
+        this.oauthAccounts.some(
+          (a) => a.provider === data.provider && a.providerAccountId === data.providerAccountId,
+        )
+      ) {
+        throw uniqueConstraintError();
+      }
+      const row: FakeOauthAccountRow = {
+        id: randomUUID(),
+        createdAt: new Date(),
+        ...data,
+      };
+      this.oauthAccounts.push(row);
+      return row;
     },
   };
 
