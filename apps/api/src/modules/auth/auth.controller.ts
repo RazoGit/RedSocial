@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   ForbiddenException,
@@ -6,6 +7,7 @@ import {
   HttpCode,
   HttpStatus,
   HttpException,
+  Param,
   Post,
   Req,
   Res,
@@ -51,6 +53,10 @@ import {
 import type { SessionMeta } from "./sessions.service";
 import { CsrfCookieService, CSRF_COOKIE_NAME } from "./services/csrf-cookie.service";
 import { LoginRateLimiterService } from "./services/login-rate-limiter.service";
+import { isOAuthProviderId } from "./services/oauth-config.service";
+import { OauthClientService } from "./services/oauth-client.service";
+import { OauthConfigService } from "./services/oauth-config.service";
+import { OauthStateService } from "./services/oauth-state.service";
 import { RefreshCookieService, REFRESH_COOKIE_NAME } from "./services/refresh-cookie.service";
 import type { AccessTokenPayload } from "./tokens.service";
 
@@ -66,6 +72,9 @@ export class AuthController {
     private readonly refreshCookie: RefreshCookieService,
     private readonly csrfCookie: CsrfCookieService,
     private readonly loginLimiter: LoginRateLimiterService,
+    private readonly oauthConfig: OauthConfigService,
+    private readonly oauthClient: OauthClientService,
+    private readonly oauthState: OauthStateService,
   ) {}
 
   /** RF-6 (registro de sesion): UA e IP del cliente para la fila de sesion. */
@@ -394,5 +403,43 @@ export class AuthController {
     const payload = request.user;
     if (!payload) throw new UnauthorizedException("missing_bearer_token");
     return this.authService.me(payload.sub);
+  }
+
+  @Public()
+  @Get("oauth/:provider")
+  @ApiOperation({
+    summary: "Inicia el flujo OAuth (authorization code) con el proveedor",
+    description:
+      "RF-9: redirige a Google/GitHub con state+nonce firmados en una cookie temporal httpOnly (10 min). Requiere credenciales del proveedor via env; sin ellas responde 503.",
+  })
+  @ApiResponse({
+    status: HttpStatus.FOUND,
+    description: "Redireccion al endpoint de autorizacion del proveedor",
+  })
+  @ApiResponse({
+    status: HttpStatus.BAD_REQUEST,
+    description: "Proveedor desconocido",
+    schema: apiErrorResponseJsonSchema,
+  })
+  @ApiResponse({
+    status: HttpStatus.SERVICE_UNAVAILABLE,
+    description: "Credenciales OAuth ausentes en este entorno",
+    schema: apiErrorResponseJsonSchema,
+  })
+  async oauthStart(@Param("provider") provider: string, @Res() reply: FastifyReply): Promise<void> {
+    if (!isOAuthProviderId(provider)) {
+      throw new BadRequestException("proveedor_no_soportado");
+    }
+
+    const issued = await this.oauthState.issue(provider);
+    const redirectUri = `${this.oauthConfig.apiBaseUrl()}/api/v1/auth/oauth/${provider}/callback`;
+    const authorizeUrl = this.oauthClient.buildAuthorizeUrl(provider, {
+      redirectUri,
+      state: issued.state,
+      nonce: issued.nonce,
+    });
+
+    this.oauthState.set(reply, issued.cookieValue);
+    await reply.redirect(authorizeUrl, HttpStatus.FOUND);
   }
 }

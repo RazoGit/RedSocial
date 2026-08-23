@@ -8,6 +8,9 @@ import {
   redisClientProvider,
 } from "./services/login-rate-limiter.service";
 import { CsrfCookieService } from "./services/csrf-cookie.service";
+import { OauthClientService } from "./services/oauth-client.service";
+import { OauthConfigService } from "./services/oauth-config.service";
+import { OauthStateService } from "./services/oauth-state.service";
 import { RefreshCookieService } from "./services/refresh-cookie.service";
 import { PasswordService } from "./services/password.service";
 import { SessionsService } from "./sessions.service";
@@ -25,6 +28,9 @@ import { TokensService } from "./tokens.service";
     RefreshCookieService,
     CsrfCookieService,
     LoginRateLimiterService,
+    OauthConfigService,
+    OauthClientService,
+    OauthStateService,
   ],
   exports: [TokensService],
 })
