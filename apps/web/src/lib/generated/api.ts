@@ -6,6 +6,181 @@
  * OpenAPI spec version: 0.1.0
  */
 import { customFetch } from '../api-mutator';
+export type UsersControllerMeV1200 = {
+  /** @pattern ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$ */
+  id: string;
+  email: string;
+  emailVerified: boolean;
+  username: string;
+  /** @nullable */
+  displayName: string | null;
+  /** @nullable */
+  bio: string | null;
+  /** @nullable */
+  avatarUrl: string | null;
+  /** @nullable */
+  avatarBlurhash: string | null;
+  isPrivate: boolean;
+  updatedAt: string;
+};
+
+export type UsersControllerMeV1401 = {
+  statusCode: number;
+  message: string;
+  error?: string;
+  path: string;
+  timestamp: string;
+};
+
+export type UsersControllerUpdateV1Body = {
+  /**
+     * @minLength 1
+     * @maxLength 50
+     * @nullable
+     */
+  displayName?: string | null;
+  /**
+     * @maxLength 280
+     * @nullable
+     */
+  bio?: string | null;
+  /** @pattern ^[a-z0-9_]{3,20}$ */
+  username?: string;
+  isPrivate?: boolean;
+};
+
+export type UsersControllerUpdateV1200 = {
+  /** @pattern ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$ */
+  id: string;
+  email: string;
+  emailVerified: boolean;
+  username: string;
+  /** @nullable */
+  displayName: string | null;
+  /** @nullable */
+  bio: string | null;
+  /** @nullable */
+  avatarUrl: string | null;
+  /** @nullable */
+  avatarBlurhash: string | null;
+  isPrivate: boolean;
+  updatedAt: string;
+};
+
+export type UsersControllerUpdateV1401 = {
+  statusCode: number;
+  message: string;
+  error?: string;
+  path: string;
+  timestamp: string;
+};
+
+export type UsersControllerUpdateV1409 = {
+  statusCode: number;
+  message: string;
+  error?: string;
+  path: string;
+  timestamp: string;
+};
+
+export type UsersControllerUpdateV1422 = {
+  statusCode: number;
+  message: string;
+  error?: string;
+  path: string;
+  timestamp: string;
+};
+
+export type UsersControllerPresignAvatarV1BodyContentType = typeof UsersControllerPresignAvatarV1BodyContentType[keyof typeof UsersControllerPresignAvatarV1BodyContentType];
+
+
+export const UsersControllerPresignAvatarV1BodyContentType = {
+  'image/jpeg': 'image/jpeg',
+  'image/png': 'image/png',
+  'image/webp': 'image/webp',
+} as const;
+
+export type UsersControllerPresignAvatarV1Body = {
+  contentType: UsersControllerPresignAvatarV1BodyContentType;
+  /**
+     * @maximum 2097152
+     * @exclusiveMinimum 0
+     */
+  sizeBytes: number;
+};
+
+export type UsersControllerPresignAvatarV1200 = {
+  uploadUrl: string;
+  /**
+     * @minLength 8
+     * @maxLength 256
+     */
+  key: string;
+  /**
+     * @maximum 9007199254740991
+     * @exclusiveMinimum 0
+     */
+  expiresIn: number;
+};
+
+export type UsersControllerPresignAvatarV1400 = {
+  statusCode: number;
+  message: string;
+  error?: string;
+  path: string;
+  timestamp: string;
+};
+
+export type UsersControllerPresignAvatarV1401 = {
+  statusCode: number;
+  message: string;
+  error?: string;
+  path: string;
+  timestamp: string;
+};
+
+export type UsersControllerCheckUsernameV1Params = {
+u: string;
+};
+
+export type UsersControllerCheckUsernameV1200Reason = typeof UsersControllerCheckUsernameV1200Reason[keyof typeof UsersControllerCheckUsernameV1200Reason];
+
+
+export const UsersControllerCheckUsernameV1200Reason = {
+  taken: 'taken',
+  reserved: 'reserved',
+  invalid_format: 'invalid_format',
+} as const;
+
+export type UsersControllerCheckUsernameV1200 = {
+  available: boolean;
+  reason?: UsersControllerCheckUsernameV1200Reason;
+};
+
+export type UsersControllerGetProfileV1200 = {
+  /** @pattern ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$ */
+  id: string;
+  username: string;
+  /** @nullable */
+  displayName: string | null;
+  /** @nullable */
+  bio: string | null;
+  /** @nullable */
+  avatarUrl: string | null;
+  /** @nullable */
+  avatarBlurhash: string | null;
+  isPrivate: boolean;
+  emailVerified: boolean;
+};
+
+export type UsersControllerGetProfileV1404 = {
+  statusCode: number;
+  message: string;
+  error?: string;
+  path: string;
+  timestamp: string;
+};
+
 export type AuthControllerRegisterV1Body = {
   /**
      * @maxLength 254
@@ -367,6 +542,253 @@ export const getHealthControllerGetReadyV1Url = () => {
 export const healthControllerGetReadyV1 = async ( options?: Parameters<typeof customFetch>[1]): Promise<healthControllerGetReadyV1Response> => {
 
   return customFetch<healthControllerGetReadyV1Response>(getHealthControllerGetReadyV1Url(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+export type usersControllerMeV1Response200 = {
+  data: UsersControllerMeV1200
+  status: 200
+}
+
+export type usersControllerMeV1Response401 = {
+  data: UsersControllerMeV1401
+  status: 401
+}
+
+export type usersControllerMeV1ResponseSuccess = (usersControllerMeV1Response200) & {
+  headers: Headers;
+};
+export type usersControllerMeV1ResponseError = (usersControllerMeV1Response401) & {
+  headers: Headers;
+};
+
+export type usersControllerMeV1Response = (usersControllerMeV1ResponseSuccess | usersControllerMeV1ResponseError)
+
+export const getUsersControllerMeV1Url = () => {
+
+
+
+
+  return `/api/v1/users/me`
+}
+
+/**
+ * RF-6: incluye username provisional, datos editables y auditoria updatedAt. Requiere access token Bearer.
+ * @summary Perfil completo del usuario autenticado
+ */
+export const usersControllerMeV1 = async ( options?: Parameters<typeof customFetch>[1]): Promise<usersControllerMeV1Response> => {
+
+  return customFetch<usersControllerMeV1Response>(getUsersControllerMeV1Url(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+export type usersControllerUpdateV1Response200 = {
+  data: UsersControllerUpdateV1200
+  status: 200
+}
+
+export type usersControllerUpdateV1Response401 = {
+  data: UsersControllerUpdateV1401
+  status: 401
+}
+
+export type usersControllerUpdateV1Response409 = {
+  data: UsersControllerUpdateV1409
+  status: 409
+}
+
+export type usersControllerUpdateV1Response422 = {
+  data: UsersControllerUpdateV1422
+  status: 422
+}
+
+export type usersControllerUpdateV1ResponseSuccess = (usersControllerUpdateV1Response200) & {
+  headers: Headers;
+};
+export type usersControllerUpdateV1ResponseError = (usersControllerUpdateV1Response401 | usersControllerUpdateV1Response409 | usersControllerUpdateV1Response422) & {
+  headers: Headers;
+};
+
+export type usersControllerUpdateV1Response = (usersControllerUpdateV1ResponseSuccess | usersControllerUpdateV1ResponseError)
+
+export const getUsersControllerUpdateV1Url = () => {
+
+
+
+
+  return `/api/v1/users/me`
+}
+
+/**
+ * Acepta displayName, bio, isPrivate y username. El primer cambio de username es gratis; despues maximo uno cada 14 dias y el anterior queda reservado 30 dias (RF-3).
+ * @summary Actualiza el perfil del usuario autenticado
+ */
+export const usersControllerUpdateV1 = async (usersControllerUpdateV1Body: UsersControllerUpdateV1Body, options?: Parameters<typeof customFetch>[1]): Promise<usersControllerUpdateV1Response> => {
+
+    const getHeaders = (h?: HeadersInit | Headers): Record<string, string> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Array.isArray(h)) return Object.fromEntries(h);
+    return h;
+  };
+return customFetch<usersControllerUpdateV1Response>(getUsersControllerUpdateV1Url(),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(usersControllerUpdateV1Body)
+  }
+);}
+
+
+
+export type usersControllerPresignAvatarV1Response200 = {
+  data: UsersControllerPresignAvatarV1200
+  status: 200
+}
+
+export type usersControllerPresignAvatarV1Response400 = {
+  data: UsersControllerPresignAvatarV1400
+  status: 400
+}
+
+export type usersControllerPresignAvatarV1Response401 = {
+  data: UsersControllerPresignAvatarV1401
+  status: 401
+}
+
+export type usersControllerPresignAvatarV1ResponseSuccess = (usersControllerPresignAvatarV1Response200) & {
+  headers: Headers;
+};
+export type usersControllerPresignAvatarV1ResponseError = (usersControllerPresignAvatarV1Response400 | usersControllerPresignAvatarV1Response401) & {
+  headers: Headers;
+};
+
+export type usersControllerPresignAvatarV1Response = (usersControllerPresignAvatarV1ResponseSuccess | usersControllerPresignAvatarV1ResponseError)
+
+export const getUsersControllerPresignAvatarV1Url = () => {
+
+
+
+
+  return `/api/v1/users/me/avatar/presign`
+}
+
+/**
+ * RF-4: acepta JPEG/PNG/WebP de hasta 2 MB; devuelve uploadUrl valida 15 min, la key destino y programa el job que genera thumbnail 256px + blurhash.
+ * @summary Emite una URL PUT pre-firmada para el avatar
+ */
+export const usersControllerPresignAvatarV1 = async (usersControllerPresignAvatarV1Body: UsersControllerPresignAvatarV1Body, options?: Parameters<typeof customFetch>[1]): Promise<usersControllerPresignAvatarV1Response> => {
+
+    const getHeaders = (h?: HeadersInit | Headers): Record<string, string> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Array.isArray(h)) return Object.fromEntries(h);
+    return h;
+  };
+return customFetch<usersControllerPresignAvatarV1Response>(getUsersControllerPresignAvatarV1Url(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(usersControllerPresignAvatarV1Body)
+  }
+);}
+
+
+
+export type usersControllerCheckUsernameV1Response200 = {
+  data: UsersControllerCheckUsernameV1200
+  status: 200
+}
+
+export type usersControllerCheckUsernameV1ResponseSuccess = (usersControllerCheckUsernameV1Response200) & {
+  headers: Headers;
+};
+;
+
+export type usersControllerCheckUsernameV1Response = (usersControllerCheckUsernameV1ResponseSuccess)
+
+export const getUsersControllerCheckUsernameV1Url = (params: UsersControllerCheckUsernameV1Params,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/v1/users/check-username?${stringifiedParams}` : `/api/v1/users/check-username`
+}
+
+/**
+ * Publico. Devuelve available=true o el motivo: taken (ocupado), reserved (prohibido) o invalid_format (no cumple 3-20 de a-z0-9_).
+ * @summary Consulta la disponibilidad de un username
+ */
+export const usersControllerCheckUsernameV1 = async (params: UsersControllerCheckUsernameV1Params, options?: Parameters<typeof customFetch>[1]): Promise<usersControllerCheckUsernameV1Response> => {
+
+  return customFetch<usersControllerCheckUsernameV1Response>(getUsersControllerCheckUsernameV1Url(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+export type usersControllerGetProfileV1Response200 = {
+  data: UsersControllerGetProfileV1200
+  status: 200
+}
+
+export type usersControllerGetProfileV1Response404 = {
+  data: UsersControllerGetProfileV1404
+  status: 404
+}
+
+export type usersControllerGetProfileV1ResponseSuccess = (usersControllerGetProfileV1Response200) & {
+  headers: Headers;
+};
+export type usersControllerGetProfileV1ResponseError = (usersControllerGetProfileV1Response404) & {
+  headers: Headers;
+};
+
+export type usersControllerGetProfileV1Response = (usersControllerGetProfileV1ResponseSuccess | usersControllerGetProfileV1ResponseError)
+
+export const getUsersControllerGetProfileV1Url = (username: string,) => {
+
+
+
+
+  return `/api/v1/users/${username}`
+}
+
+/**
+ * Devuelve la vista completa si el perfil es publico o el espectador es el dueno; ante un perfil privado ajeno entrega solo username, displayName y avatar (RF-5).
+ * @summary Perfil publico por username
+ */
+export const usersControllerGetProfileV1 = async (username: string, options?: Parameters<typeof customFetch>[1]): Promise<usersControllerGetProfileV1Response> => {
+
+  return customFetch<usersControllerGetProfileV1Response>(getUsersControllerGetProfileV1Url(username),
   {
     ...options,
     method: 'GET'
