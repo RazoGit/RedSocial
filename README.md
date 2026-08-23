@@ -24,7 +24,10 @@ publicaciones, feed, interacciones y multimedia— aplicando **desarrollo guiado
 especificaciones (SDD)**: primero se escribe la especificación, después el plan y las
 tareas; el código solo llega cuando la prueba de aceptación está definida.
 
-> 🚧 **Estado actual:** autenticación y sesiones en curso (Bloques C–D de la spec 001).
+> 🚧 **Estado actual:** autenticación y sesiones funcional de punta a punta (T1–T15 de la
+> spec 001): registro con verificación por email, login, OAuth (Google/GitHub),
+> refresh rotatorio y recuperación de contraseña. El frontend ya consume la API real
+> (mismo origen vía rewrite); quedan tests E2E y documentación (T16–T17).
 
 ## Arquitectura
 
@@ -144,7 +147,7 @@ La especificación activa es [`specs/001-autenticacion`](specs/001-autenticacion
 - [x] Fase 0 — Bootstrap del monorepo, tooling y CI
 - [x] Fase 1 — Fundación API + identidad visual
 - [x] Fase 2 — Infraestructura de datos y primitivas de seguridad
-- [ ] Autenticación completa: registro local, OAuth manual, verificación de email
+- [ ] Autenticación completa: registro local, OAuth manual, verificación de email · **T15/17**
 - [ ] Perfiles, publicaciones y reacciones
 - [ ] Feed, multimedia (MinIO) y notificaciones
 - [ ] Despliegue en free tier
