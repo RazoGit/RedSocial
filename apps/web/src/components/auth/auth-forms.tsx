@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
@@ -8,12 +8,14 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import {
   AcceptedResponseSchema,
+  AuthSessionResponseSchema,
   ForgotPasswordRequestSchema,
   LoginRequestSchema,
   LoginResponseSchema,
   PasswordSchema,
   RegisterRequestSchema,
   RegisterResponseSchema,
+  ResendVerificationRequestSchema,
   ResetPasswordResponseSchema,
 } from "@redsocial/contracts";
 import type {
@@ -409,5 +411,135 @@ function InvalidTokenPanel() {
         <Link href="/forgot-password">Solicitar nuevo enlace</Link>
       </Button>
     </div>
+  );
+}
+
+type VerifyStatus = "processing" | "success" | "error";
+
+/**
+ * Destino del enlace de verificacion del correo de registro
+ * (`/verify-email?token=...`). Confirma el token al aterrizar; como la API
+ * emite sesion al verificar, deja al usuario dentro y va al feed. Si el
+ * enlace fallo, ofrece reenviar el correo.
+ */
+export function VerifyEmailForm() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const token = searchParams.get("token") ?? "";
+  const [status, setStatus] = useState<VerifyStatus>("processing");
+  const started = useRef(false);
+
+  useEffect(() => {
+    // Strict mode monta dos veces en dev: la verificacion es de un solo
+    // uso, asi que se ejecuta exactamente una vez por pagina real.
+    if (started.current) return;
+    started.current = true;
+
+    if (token.length < 32 || token.length > 128) {
+      setStatus("error");
+      return;
+    }
+
+    let cancelled = false;
+    void (async () => {
+      try {
+        const session = await postJson("/auth/verify-email", { token }, AuthSessionResponseSchema);
+        if (cancelled) return;
+        setAuthSession({
+          accessToken: session.accessToken,
+          csrfToken: session.csrfToken,
+          expiresAt: Date.now() + session.expiresIn * 1000,
+        });
+        setStatus("success");
+        router.replace("/feed");
+      } catch {
+        if (!cancelled) setStatus("error");
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [router, token]);
+
+  return (
+    <div className="flex flex-col items-center gap-3 py-6 text-center">
+      {status === "processing" ? (
+        <>
+          <LoaderCircle aria-hidden className="text-primary size-8 animate-spin" />
+          <p className="text-muted-foreground text-sm">Confirmando tu cuenta...</p>
+        </>
+      ) : status === "success" ? (
+        <>
+          <h1 className="text-lg font-semibold">Cuenta verificada</h1>
+          <p className="text-muted-foreground text-sm">Te llevamos a tu feed.</p>
+        </>
+      ) : (
+        <>
+          <h1 className="text-lg font-semibold">Enlace invalido o expirado</h1>
+          <p className="text-muted-foreground max-w-xs text-sm">
+            Este enlace ya fue usado o vencio (dura 24 horas). Puedes solicitar otro correo de
+            verificacion abajo.
+          </p>
+          <ResendVerificationForm />
+        </>
+      )}
+    </div>
+  );
+}
+
+function ResendVerificationForm() {
+  const [sent, setSent] = useState(false);
+  const [formError, setFormError] = useState<string>();
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+  } = useForm<{ email: string }>({
+    resolver: zodResolver(ResendVerificationRequestSchema),
+    defaultValues: { email: "" },
+  });
+
+  const onSubmit = async (values: { email: string }) => {
+    setFormError(undefined);
+    try {
+      await postJson("/auth/resend-verification", values, AcceptedResponseSchema);
+      setSent(true);
+    } catch (error) {
+      setFormError(error instanceof Error ? error.message : "No se pudo reenviar el correo.");
+    }
+  };
+
+  if (sent) {
+    return (
+      <p className="text-primary text-xs">
+        Si el email existe, te enviamos un nuevo enlace de verificacion.
+      </p>
+    );
+  }
+
+  return (
+    <form onSubmit={handleSubmit(onSubmit)} className="flex w-full flex-col gap-2" noValidate>
+      <div className="flex flex-col gap-2 text-left">
+        <Label htmlFor="resend-email">Email</Label>
+        <Input
+          id="resend-email"
+          type="email"
+          placeholder="tu@email.com"
+          autoComplete="email"
+          aria-invalid={Boolean(errors.email)}
+          {...register("email")}
+        />
+        <ErrorText>{errors.email?.message}</ErrorText>
+      </div>
+      <FormError message={formError} />
+      <Button type="submit" variant="outline" size="sm" disabled={isSubmitting}>
+        Reenviar correo de verificacion
+      </Button>
+      <p className="text-muted-foreground text-center text-xs">
+        <Link href="/login" className="text-primary hover:underline">
+          Volver a iniciar sesion
+        </Link>
+      </p>
+    </form>
   );
 }
