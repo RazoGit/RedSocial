@@ -262,3 +262,112 @@ export const PresignAvatarResponseSchema = z.object({
 });
 
 export type PresignAvatarResponse = z.infer<typeof PresignAvatarResponseSchema>;
+
+// ---------------------------------------------------------------------------
+// Spec 004 — Posts y Contenido
+// ---------------------------------------------------------------------------
+
+/** Tipos de imagen aceptados para posts (spec 004 RF-1). */
+export const POST_IMAGE_CONTENT_TYPES = ["image/jpeg", "image/png", "image/webp"] as const;
+
+/** Limite de peso por imagen de post (spec 004 RF-1). */
+export const POST_IMAGE_MAX_BYTES = 5 * 1024 * 1024;
+
+/** Maximo de imagenes por post (spec 004 RF-1). */
+export const POST_MAX_MEDIA = 4;
+
+/** Longitud maxima del texto de un post (spec 004 RF-1). */
+export const POST_MAX_TEXT_LENGTH = 500;
+
+/** Informacion del autor de un post. */
+export const PostAuthorSchema = z.object({
+  username: z.string(),
+  displayName: z.string().nullable(),
+  avatarUrl: z.string().nullable(),
+});
+
+export type PostAuthor = z.infer<typeof PostAuthorSchema>;
+
+/** Media asociada a un post. */
+export const PostMediaSchema = z.object({
+  key: z.string(),
+  thumbKey: z.string().nullable(),
+  blurhash: z.string().nullable(),
+  width: z.number().int().nullable(),
+  height: z.number().int().nullable(),
+  contentType: z.string(),
+});
+
+export type PostMedia = z.infer<typeof PostMediaSchema>;
+
+/** Solicitud de creacion de post (spec 004 RF-1). */
+export const CreatePostRequestSchema = z
+  .object({
+    text: z
+      .string()
+      .max(POST_MAX_TEXT_LENGTH, `El texto no puede exceder ${POST_MAX_TEXT_LENGTH} caracteres`)
+      .optional(),
+    mediaKeys: z
+      .array(z.string())
+      .max(POST_MAX_MEDIA, `Maximo ${POST_MAX_MEDIA} imagenes`)
+      .optional(),
+  })
+  .strict()
+  .refine((data) => data.text || (data.mediaKeys && data.mediaKeys.length > 0), {
+    message: "Se requiere texto o al menos una imagen",
+  });
+
+export type CreatePostRequest = z.infer<typeof CreatePostRequestSchema>;
+
+/** Respuesta completa de un post. */
+export const PostResponseSchema = z.object({
+  id: z.uuid(),
+  author: PostAuthorSchema,
+  text: z.string().nullable(),
+  media: z.array(PostMediaSchema),
+  createdAt: z.string(),
+  editedAt: z.string().nullable(),
+});
+
+export type PostResponse = z.infer<typeof PostResponseSchema>;
+
+/** Solicitud de presign para imagen de post (spec 004 RF-2). */
+export const PresignPostMediaRequestSchema = z
+  .object({
+    contentType: z.enum(POST_IMAGE_CONTENT_TYPES, {
+      message: "Solo se aceptan imagenes JPEG, PNG o WebP",
+    }),
+    sizeBytes: z
+      .number()
+      .int()
+      .positive({ message: "El tamaño del archivo debe ser positivo" })
+      .max(POST_IMAGE_MAX_BYTES, "La imagen no puede superar 5 MB"),
+  })
+  .strict();
+
+export type PresignPostMediaRequest = z.infer<typeof PresignPostMediaRequestSchema>;
+
+/** Respuesta de presign para imagen de post. */
+export const PresignPostMediaResponseSchema = z.object({
+  uploadUrl: z.url(),
+  key: z.string().min(8).max(256),
+  expiresIn: z.number().int().positive(),
+});
+
+export type PresignPostMediaResponse = z.infer<typeof PresignPostMediaResponseSchema>;
+
+/** Parametros de paginacion cursor-based (spec 004 RF-5). */
+export const CursorPaginationSchema = z.object({
+  limit: z.coerce.number().int().min(1).max(50).default(20),
+  createdBefore: z.string().datetime().optional(),
+});
+
+export type CursorPagination = z.infer<typeof CursorPaginationSchema>;
+
+/** Respuesta paginada de posts. */
+export const PaginatedPostsResponseSchema = z.object({
+  items: z.array(PostResponseSchema),
+  nextCursor: z.string().nullable(),
+});
+
+export type PaginatedPostsResponse = z.infer<typeof PaginatedPostsResponseSchema>;

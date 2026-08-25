@@ -24,10 +24,17 @@ publicaciones, feed, interacciones y multimedia— aplicando **desarrollo guiado
 especificaciones (SDD)**: primero se escribe la especificación, después el plan y las
 tareas; el código solo llega cuando la prueba de aceptación está definida.
 
-> 🚧 **Estado actual:** autenticación y sesiones funcional de punta a punta (T1–T15 de la
-> spec 001): registro con verificación por email, login, OAuth (Google/GitHub),
-> refresh rotatorio y recuperación de contraseña. El frontend ya consume la API real
-> (mismo origen vía rewrite); quedan tests E2E y documentación (T16–T17).
+> ✅ **Spec 001 — Autenticación:** completa (T1–T17). Registro con verificación por email,
+> login con rate limiting, OAuth (Google/GitHub), refresh rotatorio con CSRF y
+> recuperación de contraseña. Tests unitarios, integración y E2E (Playwright).
+>
+> ✅ **Spec 002 — Usuarios y Perfiles:** completa (T1–T11). Editor de perfil
+> conectado (username, nombre, bio, privacidad, avatar), perfil público con cache,
+> disponibilidad de username con debounce.
+>
+> 🔄 **Spec 004 — Posts y Contenido:** en progreso. Backend completo (CRUD posts,
+> media presign, feed paginado). Frontend: composer, detalle y grid de perfil.
+> Pendiente: tests unitarios/integración y smoke E2E. Ver `specs/004-posts/tasks.md`.
 
 ## Arquitectura
 
@@ -143,15 +150,20 @@ Cada funcionalidad vive en `specs/<numero>-<nombre>/` con tres documentos:
 3. **tasks.md** — checklist verificable tarea a tarea; no se avanza si la anterior
    no compila, pasa lint y sus tests.
 
-La especificación activa es [`specs/001-autenticacion`](specs/001-autenticacion/tasks.md).
+Las especificaciones completadas y activas:
+
+- [`specs/001-autenticacion`](specs/001-autenticacion/tasks.md) ✅ — Auth y sesiones
+- [`specs/002-usuarios-perfiles`](specs/002-usuarios-perfiles/tasks.md) ✅ — Usuarios y perfiles
+- [`specs/004-posts`](specs/004-posts/tasks.md) 🔄 — Posts y contenido (Fase 4)
 
 ## Roadmap
 
 - [x] Fase 0 — Bootstrap del monorepo, tooling y CI
 - [x] Fase 1 — Fundación API + identidad visual
 - [x] Fase 2 — Infraestructura de datos y primitivas de seguridad
-- [ ] Autenticación completa: registro local, OAuth manual, verificación de email · **T15/17**
-- [ ] Perfiles, publicaciones y reacciones
+- [x] Fase 3 — Autenticación completa (spec 001)
+- [x] Fase 4 — Usuarios y perfiles (spec 002)
+- [ ] Fase 5 — Posts y contenido (spec 004) ← **actual**
 - [ ] Feed, multimedia (MinIO) y notificaciones
 - [ ] Despliegue en free tier
 

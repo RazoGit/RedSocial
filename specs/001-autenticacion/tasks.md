@@ -37,6 +37,6 @@
 
 ## Definition of Done de la spec
 
-- [ ] Todas las tareas marcadas y sus criterios demostrados
-- [ ] Criterios Gherkin de spec.md automatizados (unit/integraciÃ³n/e2e segÃºn plan Â§6)
-- [ ] Cobertura mÃ³dulo auth â‰¥ 80% Â· CI verde Â· contrato OpenAPI sin breaking changes vs v0
+- [x] Todas las tareas marcadas y sus criterios demostrados
+- [x] Criterios Gherkin de spec.md automatizados (unit/integración/e2e según plan §6)
+- [x] Cobertura módulo auth ≥80% · CI verde · contrato OpenAPI sin breaking changes vs v0

@@ -1,32 +1,77 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import {
   ArrowLeft,
   Bookmark,
   Heart,
   MessageCircle,
   MoreVertical,
-  SendHorizontal,
+  Pencil,
+  Trash2,
 } from "lucide-react";
+import type { PostResponse } from "@redsocial/contracts";
+import { PostResponseSchema } from "@redsocial/contracts";
+import { LoaderCircle } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { UserAvatar, VerifiedMark } from "@/components/user";
-import { coverGradient, postById, userById } from "@/lib/mock-data";
+import { UserAvatar } from "@/components/user";
+import { ApiError, getJson, patchJson } from "@/lib/api-client";
 import { cn } from "@/lib/utils";
+
+function formatDate(iso: string): string {
+  const date = new Date(iso);
+  return date.toLocaleDateString("es-ES", { day: "numeric", month: "short", year: "numeric" });
+}
 
 export default function PostDetailPage() {
   const params = useParams<{ id: string }>();
-  const post = postById(params.id);
+  const router = useRouter();
+  const [post, setPost] = useState<PostResponse | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string>();
   const [liked, setLiked] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [editText, setEditText] = useState("");
+  const [saving, setSaving] = useState(false);
 
-  if (!post) {
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const data = await getJson(`/posts/${params.id}`, PostResponseSchema);
+        if (!cancelled) setPost(data);
+      } catch (caught) {
+        if (cancelled) return;
+        setError(
+          caught instanceof ApiError && caught.statusCode === 404
+            ? "Publicacion no encontrada."
+            : "No se pudo cargar la publicacion.",
+        );
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [params.id]);
+
+  if (loading) {
+    return (
+      <p className="text-muted-foreground flex items-center gap-2 text-sm">
+        <LoaderCircle aria-hidden className="size-4 animate-spin" /> Cargando...
+      </p>
+    );
+  }
+
+  if (error || !post) {
     return (
       <div className="flex flex-col items-center gap-3 py-24 text-center">
-        <h1 className="text-lg font-semibold">Publicacion no encontrada</h1>
+        <h1 className="text-lg font-semibold">{error ?? "Publicacion no encontrada"}</h1>
         <Button variant="outline" size="sm" asChild>
           <Link href="/feed">Volver al inicio</Link>
         </Button>
@@ -34,7 +79,21 @@ export default function PostDetailPage() {
     );
   }
 
-  const author = userById(post.userId);
+  const isOwner = post.author.username === localStorage.getItem("username");
+
+  const handleSaveEdit = async () => {
+    if (!editText.trim() || editText.length > 500) return;
+    setSaving(true);
+    try {
+      const updated = await patchJson(`/posts/${post.id}`, { text: editText }, PostResponseSchema);
+      setPost(updated);
+      setEditing(false);
+    } catch {
+      setError("No se pudo guardar.");
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <div className="flex flex-col gap-4">
@@ -45,88 +104,139 @@ export default function PostDetailPage() {
           </Link>
         </Button>
         <span className="text-sm font-semibold">Publicacion</span>
-        <Button variant="ghost" size="icon" aria-label="Mas opciones" className="size-10">
-          <MoreVertical className="size-5" />
-        </Button>
+        {isOwner ? (
+          <Button variant="ghost" size="icon" aria-label="Mas opciones" className="size-10">
+            <MoreVertical className="size-5" />
+          </Button>
+        ) : (
+          <div className="size-10" />
+        )}
       </header>
 
       <article className="border-border bg-card/40 rounded-2xl border p-4">
         <div className="flex items-center gap-3">
           <UserAvatar
-            name={author.name}
+            name={post.author.displayName || post.author.username}
             className="ring-primary/50 size-11 ring-2 ring-offset-2 ring-offset-background"
           />
           <div className="min-w-0 flex-1">
             <p className="flex items-center gap-1 truncate text-sm font-semibold">
-              <span className="truncate">{author.name}</span>
-              {author.verified ? <VerifiedMark /> : null}
+              <span className="truncate">{post.author.displayName || post.author.username}</span>
             </p>
-            <p className="text-muted-foreground text-xs">@{author.handle}</p>
+            <p className="text-muted-foreground text-xs">@{post.author.username}</p>
           </div>
-          <Button
-            variant="outline"
-            size="sm"
-            className="border-primary/60 text-primary hover:bg-primary/10 hover:text-primary"
-          >
-            Seguir
-          </Button>
         </div>
 
-        {post.text ? <p className="mt-4 text-sm leading-relaxed">{post.text}</p> : null}
-        {post.hashtag ? (
-          <p className="text-primary mt-2 text-sm font-medium">{post.hashtag}</p>
+        {editing ? (
+          <div className="mt-4 flex flex-col gap-2">
+            <textarea
+              value={editText}
+              onChange={(e) => setEditText(e.target.value)}
+              maxLength={500}
+              className="border-input bg-card/40 focus-visible:border-primary focus-visible:ring-primary/30 min-h-[80px] w-full rounded-lg border p-3 text-sm outline-none focus-visible:ring-2"
+            />
+            <div className="flex items-center justify-between">
+              <span className="text-muted-foreground text-xs">{editText.length}/500</span>
+              <div className="flex gap-2">
+                <Button variant="ghost" size="sm" onClick={() => setEditing(false)}>
+                  Cancelar
+                </Button>
+                <Button size="sm" onClick={handleSaveEdit} disabled={saving || !editText.trim()}>
+                  {saving ? "Guardando..." : "Guardar"}
+                </Button>
+              </div>
+            </div>
+          </div>
+        ) : post.text ? (
+          <p className="mt-4 text-sm leading-relaxed">{post.text}</p>
         ) : null}
 
-        <div className="border-border relative mt-4 aspect-[4/5] overflow-hidden rounded-xl border">
-          <div className="absolute inset-0" style={{ backgroundImage: coverGradient(post.hue) }} />
-          <span
-            aria-hidden
-            className="absolute inset-0 flex items-center justify-center font-bold tracking-tighter select-none"
-          >
-            <span className="text-primary/15 text-9xl">R</span>
-          </span>
+        {post.media.length > 0 && (
+          <div className="mt-4 grid gap-2">
+            {post.media.map((m, i) => (
+              <div
+                key={i}
+                className="border-border relative aspect-[4/3] overflow-hidden rounded-xl border"
+              >
+                {m.blurhash ? (
+                  <div
+                    className="absolute inset-0"
+                    style={{ backgroundColor: `rgba(128,128,128,0.2)` }}
+                  />
+                ) : (
+                  <div className="absolute inset-0 bg-muted" />
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div className="mt-4 flex items-center justify-between">
+          <div className="text-muted-foreground text-xs">{formatDate(post.createdAt)}</div>
+          {isOwner && !editing && (
+            <div className="flex gap-2">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="size-8"
+                aria-label="Editar"
+                onClick={() => {
+                  setEditText(post.text || "");
+                  setEditing(true);
+                }}
+              >
+                <Pencil className="size-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="text-destructive size-8"
+                aria-label="Eliminar"
+                onClick={async () => {
+                  if (!confirm("Seguro que quieres eliminar esta publicacion?")) return;
+                  try {
+                    await fetch(`/api/v1/posts/${post.id}`, {
+                      method: "DELETE",
+                      credentials: "same-origin",
+                    });
+                    router.push("/feed");
+                  } catch {
+                    setError("No se pudo eliminar.");
+                  }
+                }}
+              >
+                <Trash2 className="size-4" />
+              </Button>
+            </div>
+          )}
         </div>
 
-        <div className="mt-4 flex items-center gap-5">
+        <div className="border-border mt-4 flex items-center gap-5 border-t pt-4">
           <Button
             variant="ghost"
             size="sm"
             aria-pressed={liked}
             aria-label="Me gusta"
-            onClick={() => setLiked((value) => !value)}
+            onClick={() => setLiked((v) => !v)}
             className={cn("gap-1.5", liked ? "text-primary" : "text-muted-foreground")}
           >
             <Heart className={cn("size-5", liked && "fill-current")} />
-            <span className="text-xs">{post.likes + (liked ? 1 : 0)}</span>
           </Button>
           <Button variant="ghost" size="sm" className="text-muted-foreground gap-1.5">
             <MessageCircle className="size-5" />
-            <span className="text-xs">{post.comments}</span>
           </Button>
           <Button
             variant="ghost"
             size="sm"
             aria-pressed={saved}
             aria-label="Guardar"
-            onClick={() => setSaved((value) => !value)}
+            onClick={() => setSaved((v) => !v)}
             className={cn("gap-1.5", saved ? "text-primary" : "text-muted-foreground")}
           >
             <Bookmark className={cn("size-5", saved && "fill-current")} />
           </Button>
         </div>
       </article>
-
-      <form className="flex items-center gap-2" onSubmit={(event) => event.preventDefault()}>
-        <input
-          type="text"
-          placeholder="Escribe un comentario..."
-          aria-label="Escribe un comentario"
-          className="border-input bg-card/40 focus-visible:border-primary focus-visible:ring-primary/30 text-base md:text-sm h-11 flex-1 rounded-full border px-4 outline-none focus-visible:ring-2"
-        />
-        <Button type="submit" size="icon" className="rounded-full" aria-label="Enviar comentario">
-          <SendHorizontal className="size-4" />
-        </Button>
-      </form>
     </div>
   );
 }

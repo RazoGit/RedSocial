@@ -1,9 +1,11 @@
 # @redsocial/api
 
 API REST de RedSocial construida con **NestJS 11 sobre Fastify**, Prisma ORM y PostgreSQL.
-Actualmente implementa la spec [`001-autenticacion`](../../specs/001-autenticacion/spec.md):
-registro local con verificación por email, login con rate limiting, refresh rotatorio,
-logout, OAuth (Google/GitHub) y recuperación de contraseña.
+Implementa las specs:
+
+- [`001-autenticacion`](../../specs/001-autenticacion/spec.md) ✅ — registro local con verificación por email, login con rate limiting, refresh rotatorio, logout, OAuth (Google/GitHub) y recuperación de contraseña.
+- [`002-usuarios-perfiles`](../../specs/002-usuarios-perfiles/spec.md) ✅ — perfil propio (username, nombre, bio, privacidad), avatar con procesamiento sharp, perfil público con cache Redis.
+- [`004-posts`](../../specs/004-posts/spec.md) 🔄 — CRUD de posts con imágenes, feed propio paginado cursor-based.
 
 ## Requisitos
 
@@ -142,6 +144,10 @@ apps/api/src/
 │   ├── auth/          # controlador, servicio, DTOs, guards, estrategias OAuth
 │   │   └── services/  # tokens, sesiones, passwords, CSRF, rate limit, OAuth
 │   ├── email/         # productor BullMQ + worker SMTP inline de dev
-│   └── health/        # liveness/readiness
+│   ├── health/        # liveness/readiness
+│   ├── posts/         # CRUD posts, media, feed (spec 004)
+│   │   └── services/  # post media worker, pagination
+│   └── users/         # perfil propio/público, avatar con presign, username
+│       └── services/  # username, media worker, avatar, cache, storage
 └── prisma/            # schema.prisma y migraciones (en prisma/)
 ```

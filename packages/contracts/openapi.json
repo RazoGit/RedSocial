@@ -1673,6 +1673,180 @@
         "summary": "Callback OAuth: canjea el code y emite la sesion (RF-9)",
         "tags": ["auth"]
       }
+    },
+    "/api/v1/posts": {
+      "post": {
+        "operationId": "PostsController_create_v1",
+        "summary": "Crear publicacion",
+        "tags": ["posts"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "text": { "type": "string", "maxLength": 500 },
+                  "mediaKeys": { "type": "array", "items": { "type": "string" }, "maxItems": 4 }
+                },
+                "description": "Se requiere texto o al menos una imagen"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Post creado",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/PostResponse" } }
+            }
+          },
+          "422": { "description": "Texto o imagenes requeridos" }
+        }
+      }
+    },
+    "/api/v1/posts/media/presign": {
+      "post": {
+        "operationId": "PostsController_presignMedia_v1",
+        "summary": "URL pre-firmada para imagen de post",
+        "tags": ["posts"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["contentType", "sizeBytes"],
+                "properties": {
+                  "contentType": {
+                    "type": "string",
+                    "enum": ["image/jpeg", "image/png", "image/webp"]
+                  },
+                  "sizeBytes": { "type": "integer", "maximum": 5242880 }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "URL de subida",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/PresignPostMediaResponse" }
+              }
+            }
+          },
+          "400": { "description": "Tipo o tamano invalido" }
+        }
+      }
+    },
+    "/api/v1/posts/{id}": {
+      "get": {
+        "operationId": "PostsController_findOne_v1",
+        "summary": "Detalle de publicacion",
+        "tags": ["posts"],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Post encontrado",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/PostResponse" } }
+            }
+          },
+          "404": { "description": "Post no encontrado" }
+        }
+      },
+      "patch": {
+        "operationId": "PostsController_update_v1",
+        "summary": "Editar texto de publicacion",
+        "tags": ["posts"],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["text"],
+                "properties": { "text": { "type": "string", "maxLength": 500 } }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Post actualizado",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/PostResponse" } }
+            }
+          },
+          "403": { "description": "No es el autor" },
+          "404": { "description": "Post no encontrado" }
+        }
+      },
+      "delete": {
+        "operationId": "PostsController_remove_v1",
+        "summary": "Eliminar publicacion",
+        "tags": ["posts"],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "responses": {
+          "204": { "description": "Post eliminado" },
+          "403": { "description": "No es el autor" },
+          "404": { "description": "Post no encontrado" }
+        }
+      }
+    },
+    "/api/v1/posts/user/{username}": {
+      "get": {
+        "operationId": "PostsController_findByAuthor_v1",
+        "summary": "Feed propio paginado",
+        "tags": ["posts"],
+        "parameters": [
+          { "name": "username", "in": "path", "required": true, "schema": { "type": "string" } },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": { "type": "integer", "default": 20, "minimum": 1, "maximum": 50 }
+          },
+          {
+            "name": "createdBefore",
+            "in": "query",
+            "schema": { "type": "string", "format": "date-time" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Posts paginados",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/PaginatedPostsResponse" }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "info": {
@@ -1684,6 +1858,57 @@
   "tags": [],
   "servers": [],
   "components": {
-    "schemas": {}
+    "schemas": {
+      "PostAuthor": {
+        "type": "object",
+        "properties": {
+          "username": { "type": "string" },
+          "displayName": { "type": "string", "nullable": true },
+          "avatarUrl": { "type": "string", "nullable": true }
+        },
+        "required": ["username"]
+      },
+      "PostMedia": {
+        "type": "object",
+        "properties": {
+          "key": { "type": "string" },
+          "thumbKey": { "type": "string", "nullable": true },
+          "blurhash": { "type": "string", "nullable": true },
+          "width": { "type": "integer", "nullable": true },
+          "height": { "type": "integer", "nullable": true },
+          "contentType": { "type": "string" }
+        },
+        "required": ["key", "contentType"]
+      },
+      "PostResponse": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "author": { "$ref": "#/components/schemas/PostAuthor" },
+          "text": { "type": "string", "nullable": true },
+          "media": { "type": "array", "items": { "$ref": "#/components/schemas/PostMedia" } },
+          "createdAt": { "type": "string" },
+          "editedAt": { "type": "string", "nullable": true }
+        },
+        "required": ["id", "author", "text", "media", "createdAt", "editedAt"]
+      },
+      "PresignPostMediaResponse": {
+        "type": "object",
+        "properties": {
+          "uploadUrl": { "type": "string", "format": "uri" },
+          "key": { "type": "string" },
+          "expiresIn": { "type": "integer" }
+        },
+        "required": ["uploadUrl", "key", "expiresIn"]
+      },
+      "PaginatedPostsResponse": {
+        "type": "object",
+        "properties": {
+          "items": { "type": "array", "items": { "$ref": "#/components/schemas/PostResponse" } },
+          "nextCursor": { "type": "string", "nullable": true }
+        },
+        "required": ["items", "nextCursor"]
+      }
+    }
   }
 }

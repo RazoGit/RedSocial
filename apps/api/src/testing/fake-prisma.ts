@@ -64,6 +64,27 @@ export interface FakeUsernameHistoryRow {
   createdAt: Date;
 }
 
+export interface FakePostRow {
+  id: string;
+  authorId: string;
+  text: string | null;
+  deletedAt: Date | null;
+  editedAt: Date | null;
+  createdAt: Date;
+}
+
+export interface FakePostMediaRow {
+  id: string;
+  postId: string;
+  key: string;
+  thumbKey: string | null;
+  blurhash: string | null;
+  width: number | null;
+  height: number | null;
+  contentType: string;
+  sortOrder: number;
+}
+
 interface UniqueConstraintError extends Error {
   code: string;
 }
@@ -79,6 +100,8 @@ export class FakePrisma {
   readonly oauthAccounts: FakeOauthAccountRow[] = [];
   /** Filas crudas del historial; el delegado `usernameHistory` las consulta. */
   readonly usernameHistoryRows: FakeUsernameHistoryRow[] = [];
+  readonly posts: FakePostRow[] = [];
+  readonly _postMediaRows: FakePostMediaRow[] = [];
 
   readonly user = {
     findUnique: async ({
@@ -94,6 +117,28 @@ export class FakePrisma {
             u.username !== null &&
             u.username.toLowerCase() === where.username.toLowerCase()),
       ) ?? null,
+
+    findFirst: async ({
+      where,
+    }: {
+      where: { username?: string; deletedAt?: null };
+    }): Promise<FakeUserRow | null> => {
+      return (
+        this.users.find(
+          (u) =>
+            (where.username === undefined ||
+              (u.username !== null &&
+                u.username.toLowerCase() === where.username!.toLowerCase())) &&
+            (where.deletedAt === undefined || u.deletedAt === null),
+        ) ?? null
+      );
+    },
+
+    findUniqueOrThrow: async ({ where }: { where: { id?: string } }): Promise<FakeUserRow> => {
+      const row = this.users.find((u) => where.id !== undefined && u.id === where.id);
+      if (!row) throw new Error("user.findUniqueOrThrow: not found");
+      return { ...row };
+    },
 
     create: async ({
       data,
@@ -373,6 +418,160 @@ export class FakePrisma {
       };
       this.oauthAccounts.push(row);
       return row;
+    },
+  };
+
+  readonly post = {
+    create: async ({
+      data,
+    }: {
+      data: { authorId: string; text?: string | null };
+    }): Promise<FakePostRow> => {
+      const now = new Date();
+      const row: FakePostRow = {
+        id: randomUUID(),
+        authorId: data.authorId,
+        text: data.text ?? null,
+        deletedAt: null,
+        editedAt: null,
+        createdAt: now,
+      };
+      this.posts.push(row);
+      return { ...row };
+    },
+
+    findUnique: async ({
+      where,
+      include,
+    }: {
+      where: { id: string };
+      include?: {
+        author?: {
+          select: {
+            username: boolean;
+            displayName: boolean;
+            avatarThumbKey: boolean;
+            isPrivate: boolean;
+            id: boolean;
+          };
+        };
+        media?: { orderBy: { sortOrder: string } };
+      };
+    }): Promise<(FakePostRow & { author?: FakeUserRow; media?: FakePostMediaRow[] }) | null> => {
+      const row = this.posts.find((p) => p.id === where.id);
+      if (!row) return null;
+      const result: FakePostRow & { author?: FakeUserRow; media?: FakePostMediaRow[] } = { ...row };
+      if (include?.author) {
+        result.author = this.users.find((u) => u.id === row.authorId) ?? undefined;
+      }
+      if (include?.media) {
+        result.media = this._postMediaRows
+          .filter((m) => m.postId === row.id)
+          .sort((a, b) => a.sortOrder - b.sortOrder);
+      }
+      return result;
+    },
+
+    findFirst: async ({
+      where,
+    }: {
+      where: { username?: string; deletedAt?: null | Date };
+    }): Promise<FakeUserRow | null> => {
+      return (
+        this.users.find(
+          (u) =>
+            (where.username === undefined ||
+              (u.username !== null &&
+                u.username.toLowerCase() === where.username!.toLowerCase())) &&
+            (where.deletedAt === null ? u.deletedAt === null : true),
+        ) ?? null
+      );
+    },
+
+    findMany: async ({
+      where,
+      include,
+      orderBy,
+      take,
+    }: {
+      where: { authorId?: string; deletedAt?: null; createdAt?: { lt?: Date } };
+      include?: { media?: { orderBy: { sortOrder: string } } };
+      orderBy?: { createdAt: string };
+      take?: number;
+    }): Promise<(FakePostRow & { media?: FakePostMediaRow[] })[]> => {
+      let filtered = this.posts.filter(
+        (p) =>
+          (where.authorId === undefined || p.authorId === where.authorId) &&
+          (where.deletedAt === undefined || p.deletedAt === null) &&
+          (where.createdAt?.lt === undefined || p.createdAt < where.createdAt.lt),
+      );
+      if (orderBy?.createdAt === "desc") {
+        filtered = filtered.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+      }
+      if (take !== undefined) {
+        filtered = filtered.slice(0, take);
+      }
+      return filtered.map((p) => {
+        const result: FakePostRow & { media?: FakePostMediaRow[] } = { ...p };
+        if (include?.media) {
+          result.media = this._postMediaRows
+            .filter((m) => m.postId === p.id)
+            .sort((a, b) => a.sortOrder - b.sortOrder);
+        }
+        return result;
+      });
+    },
+
+    update: async ({
+      where,
+      data,
+    }: {
+      where: { id: string };
+      data: Partial<Omit<FakePostRow, "id" | "createdAt">>;
+    }): Promise<FakePostRow> => {
+      const row = this.posts.find((p) => p.id === where.id);
+      if (!row) throw new Error("post.update: fila no encontrada");
+      Object.assign(row, data);
+      return { ...row };
+    },
+  };
+
+  readonly postMedia = {
+    create: async ({
+      data,
+    }: {
+      data: { postId: string; key: string; contentType: string; sortOrder: number };
+    }): Promise<FakePostMediaRow> => {
+      const row: FakePostMediaRow = {
+        id: randomUUID(),
+        postId: data.postId,
+        key: data.key,
+        thumbKey: null,
+        blurhash: null,
+        width: null,
+        height: null,
+        contentType: data.contentType,
+        sortOrder: data.sortOrder,
+      };
+      this._postMediaRows.push(row);
+      return { ...row };
+    },
+
+    findUnique: async ({ where }: { where: { id: string } }): Promise<FakePostMediaRow | null> => {
+      return this._postMediaRows.find((m) => m.id === where.id) ?? null;
+    },
+
+    update: async ({
+      where,
+      data,
+    }: {
+      where: { id: string };
+      data: Partial<Pick<FakePostMediaRow, "thumbKey" | "blurhash" | "width" | "height">>;
+    }): Promise<FakePostMediaRow> => {
+      const row = this._postMediaRows.find((m) => m.id === where.id);
+      if (!row) throw new Error("postMedia.update: fila no encontrada");
+      Object.assign(row, data);
+      return { ...row };
     },
   };
 

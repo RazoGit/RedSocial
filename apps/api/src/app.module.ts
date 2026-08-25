@@ -5,11 +5,12 @@ import { AllExceptionsFilter } from "./common/filters/all-exceptions.filter";
 import { JwtAuthGuard } from "./common/guards/jwt-auth.guard";
 import { AuthModule } from "./modules/auth/auth.module";
 import { HealthModule } from "./modules/health/health.module";
+import { PostsModule } from "./modules/posts/posts.module";
 import { PrismaModule } from "./modules/prisma/prisma.module";
 import { UsersModule } from "./modules/users/users.module";
 
 @Module({
-  imports: [PrismaModule, HealthModule, UsersModule, AuthModule],
+  imports: [PrismaModule, HealthModule, UsersModule, AuthModule, PostsModule],
   providers: [
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_FILTER, useClass: AllExceptionsFilter },

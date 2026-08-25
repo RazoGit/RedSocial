@@ -6,6 +6,50 @@
  * OpenAPI spec version: 0.1.0
  */
 import { customFetch } from '../api-mutator';
+export interface PostAuthor {
+  username: string;
+  /** @nullable */
+  displayName?: string | null;
+  /** @nullable */
+  avatarUrl?: string | null;
+}
+
+export interface PostMedia {
+  key: string;
+  /** @nullable */
+  thumbKey?: string | null;
+  /** @nullable */
+  blurhash?: string | null;
+  /** @nullable */
+  width?: number | null;
+  /** @nullable */
+  height?: number | null;
+  contentType: string;
+}
+
+export interface PostResponse {
+  id: string;
+  author: PostAuthor;
+  /** @nullable */
+  text: string | null;
+  media: PostMedia[];
+  createdAt: string;
+  /** @nullable */
+  editedAt: string | null;
+}
+
+export interface PresignPostMediaResponse {
+  uploadUrl: string;
+  key: string;
+  expiresIn: number;
+}
+
+export interface PaginatedPostsResponse {
+  items: PostResponse[];
+  /** @nullable */
+  nextCursor: string | null;
+}
+
 export type UsersControllerMeV1200 = {
   /** @pattern ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$ */
   id: string;
@@ -478,6 +522,45 @@ export type AuthControllerOauthCallbackV1502 = {
   error?: string;
   path: string;
   timestamp: string;
+};
+
+/**
+ * Se requiere texto o al menos una imagen
+ */
+export type PostsControllerCreateV1Body = {
+  /** @maxLength 500 */
+  text?: string;
+  /** @maxItems 4 */
+  mediaKeys?: string[];
+};
+
+export type PostsControllerPresignMediaV1BodyContentType = typeof PostsControllerPresignMediaV1BodyContentType[keyof typeof PostsControllerPresignMediaV1BodyContentType];
+
+
+export const PostsControllerPresignMediaV1BodyContentType = {
+  'image/jpeg': 'image/jpeg',
+  'image/png': 'image/png',
+  'image/webp': 'image/webp',
+} as const;
+
+export type PostsControllerPresignMediaV1Body = {
+  contentType: PostsControllerPresignMediaV1BodyContentType;
+  /** @maximum 5242880 */
+  sizeBytes: number;
+};
+
+export type PostsControllerUpdateV1Body = {
+  /** @maxLength 500 */
+  text: string;
+};
+
+export type PostsControllerFindByAuthorV1Params = {
+/**
+ * @minimum 1
+ * @maximum 50
+ */
+limit?: number;
+createdBefore?: string;
 };
 
 export type healthControllerGetHealthV1Response200 = {
@@ -1387,6 +1470,295 @@ export const getAuthControllerOauthCallbackV1Url = (provider: string,) => {
 export const authControllerOauthCallbackV1 = async (provider: string, options?: Parameters<typeof customFetch>[1]): Promise<authControllerOauthCallbackV1Response> => {
 
   return customFetch<authControllerOauthCallbackV1Response>(getAuthControllerOauthCallbackV1Url(provider),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+export type postsControllerCreateV1Response201 = {
+  data: PostResponse
+  status: 201
+}
+
+export type postsControllerCreateV1Response422 = {
+  data: void
+  status: 422
+}
+
+export type postsControllerCreateV1ResponseSuccess = (postsControllerCreateV1Response201) & {
+  headers: Headers;
+};
+export type postsControllerCreateV1ResponseError = (postsControllerCreateV1Response422) & {
+  headers: Headers;
+};
+
+export type postsControllerCreateV1Response = (postsControllerCreateV1ResponseSuccess | postsControllerCreateV1ResponseError)
+
+export const getPostsControllerCreateV1Url = () => {
+
+
+
+
+  return `/api/v1/posts`
+}
+
+/**
+ * @summary Crear publicacion
+ */
+export const postsControllerCreateV1 = async (postsControllerCreateV1Body: PostsControllerCreateV1Body, options?: Parameters<typeof customFetch>[1]): Promise<postsControllerCreateV1Response> => {
+
+    const getHeaders = (h?: HeadersInit | Headers): Record<string, string> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Array.isArray(h)) return Object.fromEntries(h);
+    return h;
+  };
+return customFetch<postsControllerCreateV1Response>(getPostsControllerCreateV1Url(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(postsControllerCreateV1Body)
+  }
+);}
+
+
+
+export type postsControllerPresignMediaV1Response200 = {
+  data: PresignPostMediaResponse
+  status: 200
+}
+
+export type postsControllerPresignMediaV1Response400 = {
+  data: void
+  status: 400
+}
+
+export type postsControllerPresignMediaV1ResponseSuccess = (postsControllerPresignMediaV1Response200) & {
+  headers: Headers;
+};
+export type postsControllerPresignMediaV1ResponseError = (postsControllerPresignMediaV1Response400) & {
+  headers: Headers;
+};
+
+export type postsControllerPresignMediaV1Response = (postsControllerPresignMediaV1ResponseSuccess | postsControllerPresignMediaV1ResponseError)
+
+export const getPostsControllerPresignMediaV1Url = () => {
+
+
+
+
+  return `/api/v1/posts/media/presign`
+}
+
+/**
+ * @summary URL pre-firmada para imagen de post
+ */
+export const postsControllerPresignMediaV1 = async (postsControllerPresignMediaV1Body: PostsControllerPresignMediaV1Body, options?: Parameters<typeof customFetch>[1]): Promise<postsControllerPresignMediaV1Response> => {
+
+    const getHeaders = (h?: HeadersInit | Headers): Record<string, string> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Array.isArray(h)) return Object.fromEntries(h);
+    return h;
+  };
+return customFetch<postsControllerPresignMediaV1Response>(getPostsControllerPresignMediaV1Url(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(postsControllerPresignMediaV1Body)
+  }
+);}
+
+
+
+export type postsControllerFindOneV1Response200 = {
+  data: PostResponse
+  status: 200
+}
+
+export type postsControllerFindOneV1Response404 = {
+  data: void
+  status: 404
+}
+
+export type postsControllerFindOneV1ResponseSuccess = (postsControllerFindOneV1Response200) & {
+  headers: Headers;
+};
+export type postsControllerFindOneV1ResponseError = (postsControllerFindOneV1Response404) & {
+  headers: Headers;
+};
+
+export type postsControllerFindOneV1Response = (postsControllerFindOneV1ResponseSuccess | postsControllerFindOneV1ResponseError)
+
+export const getPostsControllerFindOneV1Url = (id: string,) => {
+
+
+
+
+  return `/api/v1/posts/${id}`
+}
+
+/**
+ * @summary Detalle de publicacion
+ */
+export const postsControllerFindOneV1 = async (id: string, options?: Parameters<typeof customFetch>[1]): Promise<postsControllerFindOneV1Response> => {
+
+  return customFetch<postsControllerFindOneV1Response>(getPostsControllerFindOneV1Url(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+export type postsControllerUpdateV1Response200 = {
+  data: PostResponse
+  status: 200
+}
+
+export type postsControllerUpdateV1Response403 = {
+  data: void
+  status: 403
+}
+
+export type postsControllerUpdateV1Response404 = {
+  data: void
+  status: 404
+}
+
+export type postsControllerUpdateV1ResponseSuccess = (postsControllerUpdateV1Response200) & {
+  headers: Headers;
+};
+export type postsControllerUpdateV1ResponseError = (postsControllerUpdateV1Response403 | postsControllerUpdateV1Response404) & {
+  headers: Headers;
+};
+
+export type postsControllerUpdateV1Response = (postsControllerUpdateV1ResponseSuccess | postsControllerUpdateV1ResponseError)
+
+export const getPostsControllerUpdateV1Url = (id: string,) => {
+
+
+
+
+  return `/api/v1/posts/${id}`
+}
+
+/**
+ * @summary Editar texto de publicacion
+ */
+export const postsControllerUpdateV1 = async (id: string,
+    postsControllerUpdateV1Body: PostsControllerUpdateV1Body, options?: Parameters<typeof customFetch>[1]): Promise<postsControllerUpdateV1Response> => {
+
+    const getHeaders = (h?: HeadersInit | Headers): Record<string, string> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Array.isArray(h)) return Object.fromEntries(h);
+    return h;
+  };
+return customFetch<postsControllerUpdateV1Response>(getPostsControllerUpdateV1Url(id),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(postsControllerUpdateV1Body)
+  }
+);}
+
+
+
+export type postsControllerRemoveV1Response204 = {
+  data: void
+  status: 204
+}
+
+export type postsControllerRemoveV1Response403 = {
+  data: void
+  status: 403
+}
+
+export type postsControllerRemoveV1Response404 = {
+  data: void
+  status: 404
+}
+
+export type postsControllerRemoveV1ResponseSuccess = (postsControllerRemoveV1Response204) & {
+  headers: Headers;
+};
+export type postsControllerRemoveV1ResponseError = (postsControllerRemoveV1Response403 | postsControllerRemoveV1Response404) & {
+  headers: Headers;
+};
+
+export type postsControllerRemoveV1Response = (postsControllerRemoveV1ResponseSuccess | postsControllerRemoveV1ResponseError)
+
+export const getPostsControllerRemoveV1Url = (id: string,) => {
+
+
+
+
+  return `/api/v1/posts/${id}`
+}
+
+/**
+ * @summary Eliminar publicacion
+ */
+export const postsControllerRemoveV1 = async (id: string, options?: Parameters<typeof customFetch>[1]): Promise<postsControllerRemoveV1Response> => {
+
+  return customFetch<postsControllerRemoveV1Response>(getPostsControllerRemoveV1Url(id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+export type postsControllerFindByAuthorV1Response200 = {
+  data: PaginatedPostsResponse
+  status: 200
+}
+
+export type postsControllerFindByAuthorV1ResponseSuccess = (postsControllerFindByAuthorV1Response200) & {
+  headers: Headers;
+};
+;
+
+export type postsControllerFindByAuthorV1Response = (postsControllerFindByAuthorV1ResponseSuccess)
+
+export const getPostsControllerFindByAuthorV1Url = (username: string,
+    params?: PostsControllerFindByAuthorV1Params,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/v1/posts/user/${username}?${stringifiedParams}` : `/api/v1/posts/user/${username}`
+}
+
+/**
+ * @summary Feed propio paginado
+ */
+export const postsControllerFindByAuthorV1 = async (username: string,
+    params?: PostsControllerFindByAuthorV1Params, options?: Parameters<typeof customFetch>[1]): Promise<postsControllerFindByAuthorV1Response> => {
+
+  return customFetch<postsControllerFindByAuthorV1Response>(getPostsControllerFindByAuthorV1Url(username,params),
   {
     ...options,
     method: 'GET'

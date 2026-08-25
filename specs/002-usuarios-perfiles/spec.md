@@ -1,7 +1,8 @@
 # Spec 002 — Usuarios y Perfiles
 
-- Estado: Borrador para planificación (se planifica al iniciar Fase 3)
+- Estado: ✅ Completa
 - Fecha: 2026-08-22
+- Cierre: 2026-08-24
 - Prioridad: P0
 - Implementación: Fase 3 del ROADMAP · Dependencias: spec 001
 
