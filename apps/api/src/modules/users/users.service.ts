@@ -128,11 +128,25 @@ export class UsersService {
         avatarBlurhash: user.avatarBlurhash,
         isPrivate: user.isPrivate,
         emailVerified: user.emailVerified,
+        followersCount: user.followersCount,
+        followingCount: user.followingCount,
       };
       await this.cache.set(snapshot);
     }
 
     if (!snapshot.isPrivate || viewerId === snapshot.id) {
+      // Si el viewer esta autenticado, agregar isFollowing
+      if (viewerId && viewerId !== snapshot.id) {
+        const isFollowing = await this.prisma.follow.findUnique({
+          where: {
+            followerId_followingId: {
+              followerId: viewerId,
+              followingId: snapshot.id,
+            },
+          },
+        });
+        return { ...snapshot, isFollowing: isFollowing !== null };
+      }
       return snapshot;
     }
     return this.toMinimal(snapshot);

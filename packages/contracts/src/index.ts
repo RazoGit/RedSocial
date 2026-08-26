@@ -220,6 +220,9 @@ export const UserProfileResponseSchema = z.object({
   avatarBlurhash: z.string().nullable(),
   isPrivate: z.boolean(),
   emailVerified: z.boolean(),
+  followersCount: z.number().int(),
+  followingCount: z.number().int(),
+  isFollowing: z.boolean().optional(),
 });
 
 export type UserProfileResponse = z.infer<typeof UserProfileResponseSchema>;
@@ -371,3 +374,32 @@ export const PaginatedPostsResponseSchema = z.object({
 });
 
 export type PaginatedPostsResponse = z.infer<typeof PaginatedPostsResponseSchema>;
+
+// ---------------------------------------------------------------------------
+// Spec 005 — Grafo Social y Feed Principal
+// ---------------------------------------------------------------------------
+
+/** Respuesta de follow/unfollow (spec 005 RF-1/RF-2). */
+export const FollowResponseSchema = z.object({
+  following: z.boolean(),
+  followersCount: z.number().int(),
+  followingCount: z.number().int(),
+});
+
+export type FollowResponse = z.infer<typeof FollowResponseSchema>;
+
+/** Query params del feed cronológico (spec 005 RF-7). */
+export const FeedQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(50).default(20),
+  createdBefore: z.string().datetime().optional(),
+});
+
+export type FeedQuery = z.infer<typeof FeedQuerySchema>;
+
+/** Respuesta paginada del feed (spec 005 RF-7). */
+export const FeedResponseSchema = z.object({
+  items: z.array(PostResponseSchema),
+  nextCursor: z.string().nullable(),
+});
+
+export type FeedResponse = z.infer<typeof FeedResponseSchema>;

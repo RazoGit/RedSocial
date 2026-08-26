@@ -25,6 +25,10 @@ model User {
   isPrivate         Boolean   @default(false) @map("is_private")
   usernameChangedAt DateTime? @map("username_changed_at") @db.Timestamptz(3)
 
+  // Contadores del grafo social (spec 005)
+  followersCount Int @default(0) @map("followers_count")
+  followingCount Int @default(0) @map("following_count")
+
   createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt     DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
   deletedAt     DateTime? @map("deleted_at") @db.Timestamptz(3)
@@ -34,6 +38,8 @@ model User {
   emailTokens       EmailToken[]
   usernameHistories UsernameHistory[]
   posts             Post[]
+  following         Follow[] @relation("following")
+  followers         Follow[] @relation("followers")
 
   @@map("users")
 }
@@ -141,4 +147,19 @@ model PostMedia {
 
   @@index([postId])
   @@map("post_media")
+}
+
+/// Relación de seguimiento entre usuarios (spec 005). Único compuesto.
+model Follow {
+  id          String   @id @default(uuid()) @db.Uuid
+  followerId  String   @map("follower_id") @db.Uuid
+  followingId String   @map("following_id") @db.Uuid
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  follower  User @relation("following", fields: [followerId], references: [id], onDelete: Cascade)
+  following User @relation("followers", fields: [followingId], references: [id], onDelete: Cascade)
+
+  @@unique([followerId, followingId])
+  @@index([followingId])
+  @@map("follows")
 }

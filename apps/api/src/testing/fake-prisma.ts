@@ -22,6 +22,8 @@ export interface FakeUserRow {
   avatarBlurhash: string | null;
   isPrivate: boolean;
   usernameChangedAt: Date | null;
+  followersCount: number;
+  followingCount: number;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -85,6 +87,13 @@ export interface FakePostMediaRow {
   sortOrder: number;
 }
 
+export interface FakeFollowRow {
+  id: string;
+  followerId: string;
+  followingId: string;
+  createdAt: Date;
+}
+
 interface UniqueConstraintError extends Error {
   code: string;
 }
@@ -102,6 +111,7 @@ export class FakePrisma {
   readonly usernameHistoryRows: FakeUsernameHistoryRow[] = [];
   readonly posts: FakePostRow[] = [];
   readonly _postMediaRows: FakePostMediaRow[] = [];
+  readonly follows: FakeFollowRow[] = [];
 
   readonly user = {
     findUnique: async ({
@@ -177,6 +187,8 @@ export class FakePrisma {
         avatarBlurhash: null,
         isPrivate: false,
         usernameChangedAt: null,
+        followersCount: 0,
+        followingCount: 0,
         createdAt: now,
         updatedAt: now,
       };
@@ -189,11 +201,22 @@ export class FakePrisma {
       data,
     }: {
       where: { id: string };
-      data: Partial<Omit<FakeUserRow, "id" | "createdAt">>;
+      data: Partial<Omit<FakeUserRow, "id" | "createdAt">> & Record<string, unknown>;
     }): Promise<FakeUserRow> => {
       const row = this.users.find((u) => u.id === where.id);
       if (!row) throw new Error("user.update: fila no encontrada");
-      Object.assign(row, data, { updatedAt: new Date() });
+      // Handle atomic increment/decrement: { increment: N } | { decrement: N }
+      const rowAny = row as unknown as Record<string, unknown>;
+      for (const [key, value] of Object.entries(data)) {
+        if (value && typeof value === "object" && "increment" in value) {
+          rowAny[key] = (rowAny[key] as number) + (value as { increment: number }).increment;
+        } else if (value && typeof value === "object" && "decrement" in value) {
+          rowAny[key] = (rowAny[key] as number) - (value as { decrement: number }).decrement;
+        } else {
+          rowAny[key] = value;
+        }
+      }
+      row.updatedAt = new Date();
       return row;
     },
   };
@@ -575,7 +598,75 @@ export class FakePrisma {
     },
   };
 
-  async $transaction<T>(fn: (tx: FakePrisma) => Promise<T>): Promise<T> {
-    return fn(this);
+  readonly follow = {
+    findUnique: async ({
+      where,
+    }: {
+      where: { followerId_followingId: { followerId: string; followingId: string } };
+    }): Promise<FakeFollowRow | null> =>
+      this.follows.find(
+        (f) =>
+          f.followerId === where.followerId_followingId.followerId &&
+          f.followingId === where.followerId_followingId.followingId,
+      ) ?? null,
+
+    create: async ({
+      data,
+    }: {
+      data: { followerId: string; followingId: string };
+    }): Promise<FakeFollowRow> => {
+      const existing = this.follows.find(
+        (f) => f.followerId === data.followerId && f.followingId === data.followingId,
+      );
+      if (existing) throw uniqueConstraintError();
+      const row: FakeFollowRow = {
+        id: randomUUID(),
+        followerId: data.followerId,
+        followingId: data.followingId,
+        createdAt: new Date(),
+      };
+      this.follows.push(row);
+      return row;
+    },
+
+    delete: async ({
+      where,
+    }: {
+      where: { followerId_followingId: { followerId: string; followingId: string } };
+    }): Promise<FakeFollowRow> => {
+      const idx = this.follows.findIndex(
+        (f) =>
+          f.followerId === where.followerId_followingId.followerId &&
+          f.followingId === where.followerId_followingId.followingId,
+      );
+      if (idx === -1) throw new Error("follow.delete: not found");
+      const [removed] = this.follows.splice(idx, 1);
+      return removed!;
+    },
+
+    findMany: async ({
+      where,
+    }: {
+      where: { followingId?: string; followerId?: string };
+    }): Promise<FakeFollowRow[]> =>
+      this.follows.filter(
+        (f) =>
+          (where.followingId === undefined || f.followingId === where.followingId) &&
+          (where.followerId === undefined || f.followerId === where.followerId),
+      ),
+  };
+
+  async $transaction<T>(fnOrOps: ((tx: FakePrisma) => Promise<T>) | unknown[]): Promise<T> {
+    if (typeof fnOrOps === "function") {
+      return fnOrOps(this);
+    }
+    // Array form: execute each operation sequentially
+    const results: unknown[] = [];
+    for (const op of fnOrOps) {
+      if (op && typeof op === "object" && typeof (op as { then?: unknown }).then === "function") {
+        results.push(await op);
+      }
+    }
+    return results as T;
   }
 }

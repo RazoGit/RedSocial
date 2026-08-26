@@ -32,6 +32,8 @@ export interface CachedProfile {
   avatarBlurhash: string | null;
   isPrivate: boolean;
   emailVerified: boolean;
+  followersCount: number;
+  followingCount: number;
 }
 
 interface MemoryEntry {
