@@ -5,7 +5,9 @@ Implementa las specs:
 
 - [`001-autenticacion`](../../specs/001-autenticacion/spec.md) ✅ — registro local con verificación por email, login con rate limiting, refresh rotatorio, logout, OAuth (Google/GitHub) y recuperación de contraseña.
 - [`002-usuarios-perfiles`](../../specs/002-usuarios-perfiles/spec.md) ✅ — perfil propio (username, nombre, bio, privacidad), avatar con procesamiento sharp, perfil público con cache Redis.
-- [`004-posts`](../../specs/004-posts/spec.md) 🔄 — CRUD de posts con imágenes, feed propio paginado cursor-based.
+- [`004-posts`](../../specs/004-posts/spec.md) ✅ — CRUD de posts con imágenes, feed propio paginado cursor-based.
+- [`005-social-graph`](../../specs/005-social-graph/spec.md) ✅ — follow/unfollow, feed principal cronológico con fan-out Redis (BullMQ) y fallback a Postgres.
+- [`006-likes-comentarios`](../../specs/006-likes-comentarios/spec.md) ✅ — likes/unlikes y comentarios anidados (1 nivel) con contadores atómicos.
 
 ## Requisitos
 
@@ -147,6 +149,10 @@ apps/api/src/
 │   ├── health/        # liveness/readiness
 │   ├── posts/         # CRUD posts, media, feed (spec 004)
 │   │   └── services/  # post media worker, pagination
+│   ├── follows/       # follow/unfollow, feed principal, fan-out (spec 005)
+│   │   └── services/  # feed service, feed cache Redis, fan-out worker
+│   ├── likes/         # like/unlike con contadores atómicos (spec 006)
+│   ├── comments/      # comentarios anidados (1 nivel) paginados (spec 006)
 │   └── users/         # perfil propio/público, avatar con presign, username
 │       └── services/  # username, media worker, avatar, cache, storage
 └── prisma/            # schema.prisma y migraciones (en prisma/)

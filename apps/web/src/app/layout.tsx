@@ -11,6 +11,9 @@ export const metadata: Metadata = {
     template: "%s | R",
   },
   description: "Una nueva forma de conectar está aquí.",
+  icons: {
+    icon: "/icon.svg",
+  },
 };
 
 export default function RootLayout({

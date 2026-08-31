@@ -29,6 +29,7 @@ import { LoaderCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PasswordInput } from "@/components/ui/password-input";
 import { ApiError, postJson } from "@/lib/api-client";
 import { setAuthSession } from "@/lib/auth-session";
 
@@ -102,9 +103,8 @@ export function LoginForm() {
       </div>
       <div className="flex flex-col gap-2">
         <Label htmlFor="password">Contrasena</Label>
-        <Input
+        <PasswordInput
           id="password"
-          type="password"
           placeholder="Tu contrasena"
           autoComplete="current-password"
           aria-invalid={Boolean(errors.password)}
@@ -185,9 +185,8 @@ export function RegisterForm() {
       </div>
       <div className="flex flex-col gap-2">
         <Label htmlFor="password">Contrasena</Label>
-        <Input
+        <PasswordInput
           id="password"
-          type="password"
           placeholder="Minimo 10 caracteres"
           autoComplete="new-password"
           aria-invalid={Boolean(errors.password)}
@@ -358,9 +357,8 @@ export function ResetPasswordForm() {
     <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4" noValidate>
       <div className="flex flex-col gap-2">
         <Label htmlFor="password">Nueva contrasena</Label>
-        <Input
+        <PasswordInput
           id="password"
-          type="password"
           placeholder="Minimo 10 caracteres"
           autoComplete="new-password"
           aria-invalid={Boolean(errors.password)}
@@ -370,9 +368,8 @@ export function ResetPasswordForm() {
       </div>
       <div className="flex flex-col gap-2">
         <Label htmlFor="confirmPassword">Confirmar contrasena</Label>
-        <Input
+        <PasswordInput
           id="confirmPassword"
-          type="password"
           placeholder="Repite la contrasena"
           autoComplete="new-password"
           aria-invalid={Boolean(errors.confirmPassword)}
