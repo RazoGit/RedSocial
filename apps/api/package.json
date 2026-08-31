@@ -2,8 +2,9 @@
   "name": "@redsocial/api",
   "version": "0.1.0",
   "private": true,
+  "type": "commonjs",
   "scripts": {
-    "dev": "node -r ts-node/register/transpile-only --watch src/main.ts",
+    "dev": "ts-node --swc -P tsconfig.dev.json src/main.ts",
     "build": "tsc -p tsconfig.build.json",
     "start": "node dist/main.js",
     "lint": "eslint .",

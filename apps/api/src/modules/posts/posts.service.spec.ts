@@ -7,6 +7,7 @@ import type { CreatePostRequest } from "@redsocial/contracts";
 import { PostsService } from "./services/posts.service";
 import { PostMediaService } from "./services/post-media.service";
 import { StorageService } from "./services/storage.service";
+import { LikesService } from "../likes/likes.service";
 import { FakePrisma } from "../../testing/fake-prisma";
 import type { PrismaService } from "../prisma/prisma.service";
 
@@ -16,8 +17,18 @@ function makeService(prisma: FakePrisma) {
   const postMedia = new PostMediaService(prisma as unknown as PrismaService, storage, {
     add: queueAdd,
   } as unknown as Queue);
-  const service = new PostsService(prisma as unknown as PrismaService, storage, postMedia);
-  return { service, storage, queueAdd, prisma };
+  const feedCache = { removePostFromFeeds: vi.fn().mockResolvedValue(undefined) };
+  const fanoutQueue = { add: vi.fn().mockResolvedValue(undefined) };
+  const likesService = new LikesService(prisma as unknown as PrismaService);
+  const service = new PostsService(
+    prisma as unknown as PrismaService,
+    storage,
+    postMedia,
+    feedCache as never,
+    fanoutQueue as never,
+    likesService,
+  );
+  return { service, storage, queueAdd, feedCache, fanoutQueue, prisma };
 }
 
 async function seedAuthor(prisma: FakePrisma) {

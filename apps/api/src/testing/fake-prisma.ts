@@ -72,6 +72,8 @@ export interface FakePostRow {
   text: string | null;
   deletedAt: Date | null;
   editedAt: Date | null;
+  likesCount: number;
+  commentsCount: number;
   createdAt: Date;
 }
 
@@ -94,6 +96,23 @@ export interface FakeFollowRow {
   createdAt: Date;
 }
 
+export interface FakeLikeRow {
+  id: string;
+  userId: string;
+  postId: string;
+  createdAt: Date;
+}
+
+export interface FakeCommentRow {
+  id: string;
+  postId: string;
+  authorId: string;
+  text: string;
+  parentId: string | null;
+  deletedAt: Date | null;
+  createdAt: Date;
+}
+
 interface UniqueConstraintError extends Error {
   code: string;
 }
@@ -112,6 +131,8 @@ export class FakePrisma {
   readonly posts: FakePostRow[] = [];
   readonly _postMediaRows: FakePostMediaRow[] = [];
   readonly follows: FakeFollowRow[] = [];
+  readonly likes: FakeLikeRow[] = [];
+  readonly comments: FakeCommentRow[] = [];
 
   readonly user = {
     findUnique: async ({
@@ -457,6 +478,8 @@ export class FakePrisma {
         text: data.text ?? null,
         deletedAt: null,
         editedAt: null,
+        likesCount: 0,
+        commentsCount: 0,
         createdAt: now,
       };
       this.posts.push(row);
@@ -495,18 +518,34 @@ export class FakePrisma {
       return result;
     },
 
+    findUniqueOrThrow: async ({
+      where,
+      select,
+    }: {
+      where: { id: string };
+      select?: { likesCount?: boolean; commentsCount?: boolean };
+    }): Promise<FakePostRow> => {
+      const row = this.posts.find((p) => p.id === where.id);
+      if (!row) throw new Error("post.findUniqueOrThrow: not found");
+      if (select) {
+        const partial: Record<string, unknown> = { id: row.id };
+        if (select.likesCount) partial.likesCount = row.likesCount;
+        if (select.commentsCount) partial.commentsCount = row.commentsCount;
+        return partial as unknown as FakePostRow;
+      }
+      return { ...row };
+    },
+
     findFirst: async ({
       where,
     }: {
-      where: { username?: string; deletedAt?: null | Date };
-    }): Promise<FakeUserRow | null> => {
+      where: { id?: string; deletedAt?: null };
+    }): Promise<FakePostRow | null> => {
       return (
-        this.users.find(
-          (u) =>
-            (where.username === undefined ||
-              (u.username !== null &&
-                u.username.toLowerCase() === where.username!.toLowerCase())) &&
-            (where.deletedAt === null ? u.deletedAt === null : true),
+        this.posts.find(
+          (p) =>
+            (where.id === undefined || p.id === where.id) &&
+            (where.deletedAt === null ? p.deletedAt === null : true),
         ) ?? null
       );
     },
@@ -517,17 +556,36 @@ export class FakePrisma {
       orderBy,
       take,
     }: {
-      where: { authorId?: string; deletedAt?: null; createdAt?: { lt?: Date } };
-      include?: { media?: { orderBy: { sortOrder: string } } };
+      where: {
+        authorId?: string | { in: string[] };
+        deletedAt?: null;
+        createdAt?: { lt?: Date };
+      };
+      include?: {
+        media?: { orderBy: { sortOrder: string } };
+        author?: {
+          select: {
+            id: boolean;
+            username: boolean;
+            displayName: boolean;
+            avatarThumbKey: boolean;
+          };
+        };
+      };
       orderBy?: { createdAt: string };
       take?: number;
-    }): Promise<(FakePostRow & { media?: FakePostMediaRow[] })[]> => {
-      let filtered = this.posts.filter(
-        (p) =>
-          (where.authorId === undefined || p.authorId === where.authorId) &&
-          (where.deletedAt === undefined || p.deletedAt === null) &&
-          (where.createdAt?.lt === undefined || p.createdAt < where.createdAt.lt),
-      );
+    }): Promise<(FakePostRow & { media?: FakePostMediaRow[]; author?: FakeUserRow })[]> => {
+      let filtered = this.posts.filter((p) => {
+        const matchAuthor =
+          where.authorId === undefined
+            ? true
+            : typeof where.authorId === "string"
+              ? p.authorId === where.authorId
+              : where.authorId.in.includes(p.authorId);
+        const matchDeleted = where.deletedAt === undefined || p.deletedAt === null;
+        const matchCursor = where.createdAt?.lt === undefined || p.createdAt < where.createdAt.lt;
+        return matchAuthor && matchDeleted && matchCursor;
+      });
       if (orderBy?.createdAt === "desc") {
         filtered = filtered.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
       }
@@ -535,11 +593,14 @@ export class FakePrisma {
         filtered = filtered.slice(0, take);
       }
       return filtered.map((p) => {
-        const result: FakePostRow & { media?: FakePostMediaRow[] } = { ...p };
+        const result: FakePostRow & { media?: FakePostMediaRow[]; author?: FakeUserRow } = { ...p };
         if (include?.media) {
           result.media = this._postMediaRows
             .filter((m) => m.postId === p.id)
             .sort((a, b) => a.sortOrder - b.sortOrder);
+        }
+        if (include?.author) {
+          result.author = this.users.find((u) => u.id === p.authorId) ?? undefined;
         }
         return result;
       });
@@ -550,11 +611,20 @@ export class FakePrisma {
       data,
     }: {
       where: { id: string };
-      data: Partial<Omit<FakePostRow, "id" | "createdAt">>;
+      data: Partial<Omit<FakePostRow, "id" | "createdAt">> & Record<string, unknown>;
     }): Promise<FakePostRow> => {
       const row = this.posts.find((p) => p.id === where.id);
       if (!row) throw new Error("post.update: fila no encontrada");
-      Object.assign(row, data);
+      const rowAny = row as unknown as Record<string, unknown>;
+      for (const [key, value] of Object.entries(data)) {
+        if (value && typeof value === "object" && "increment" in value) {
+          rowAny[key] = (rowAny[key] as number) + (value as { increment: number }).increment;
+        } else if (value && typeof value === "object" && "decrement" in value) {
+          rowAny[key] = (rowAny[key] as number) - (value as { decrement: number }).decrement;
+        } else {
+          rowAny[key] = value;
+        }
+      }
       return { ...row };
     },
   };
@@ -654,6 +724,278 @@ export class FakePrisma {
           (where.followingId === undefined || f.followingId === where.followingId) &&
           (where.followerId === undefined || f.followerId === where.followerId),
       ),
+  };
+
+  readonly like = {
+    findUnique: async ({
+      where,
+    }: {
+      where: { userId_postId: { userId: string; postId: string } };
+    }): Promise<FakeLikeRow | null> =>
+      this.likes.find(
+        (l) => l.userId === where.userId_postId.userId && l.postId === where.userId_postId.postId,
+      ) ?? null,
+
+    create: async ({
+      data,
+    }: {
+      data: { userId: string; postId: string };
+    }): Promise<FakeLikeRow> => {
+      const existing = this.likes.find((l) => l.userId === data.userId && l.postId === data.postId);
+      if (existing) throw uniqueConstraintError();
+      const row: FakeLikeRow = {
+        id: randomUUID(),
+        userId: data.userId,
+        postId: data.postId,
+        createdAt: new Date(),
+      };
+      this.likes.push(row);
+      return row;
+    },
+
+    delete: async ({
+      where,
+    }: {
+      where: { userId_postId: { userId: string; postId: string } };
+    }): Promise<FakeLikeRow> => {
+      const idx = this.likes.findIndex(
+        (l) => l.userId === where.userId_postId.userId && l.postId === where.userId_postId.postId,
+      );
+      if (idx === -1) throw new Error("like.delete: not found");
+      const [removed] = this.likes.splice(idx, 1);
+      return removed!;
+    },
+
+    findMany: async ({
+      where,
+      select,
+    }: {
+      where: {
+        userId?: string;
+        postId?: string | { in: string[] };
+        userIds?: string[];
+        postIdIn?: string[];
+      };
+      select?: { postId?: boolean };
+    }): Promise<FakeLikeRow[]> => {
+      const filtered = this.likes.filter((l) => {
+        if (where.userId !== undefined && l.userId !== where.userId) return false;
+        if (where.postId !== undefined) {
+          if (typeof where.postId === "string") {
+            if (l.postId !== where.postId) return false;
+          } else if (!where.postId.in.includes(l.postId)) {
+            return false;
+          }
+        }
+        if (where.userIds !== undefined && !where.userIds.includes(l.userId)) return false;
+        if (where.postIdIn !== undefined && !where.postIdIn.includes(l.postId)) return false;
+        return true;
+      });
+      if (select?.postId) {
+        return filtered.map((l) => ({ ...l }));
+      }
+      return filtered;
+    },
+
+    count: async ({
+      where,
+    }: {
+      where: { postId?: string; userId?: string; postIdIn?: string[] };
+    }): Promise<number> => {
+      if (where.postIdIn) {
+        const counts: Record<string, number> = {};
+        for (const l of this.likes) {
+          if (where.postIdIn.includes(l.postId)) {
+            counts[l.postId] = (counts[l.postId] ?? 0) + 1;
+          }
+        }
+        return Object.values(counts).reduce((a, b) => a + b, 0);
+      }
+      return this.likes.filter(
+        (l) =>
+          (where.postId === undefined || l.postId === where.postId) &&
+          (where.userId === undefined || l.userId === where.userId),
+      ).length;
+    },
+  };
+
+  readonly comment = {
+    create: async ({
+      data,
+      include,
+    }: {
+      data: {
+        postId: string;
+        authorId: string;
+        text: string;
+        parentId?: string | null;
+      };
+      include?: {
+        author?: {
+          select: { username: boolean; displayName: boolean; avatarThumbKey: boolean };
+        };
+      };
+    }): Promise<
+      FakeCommentRow & {
+        author?: {
+          username: string | null;
+          displayName: string | null;
+          avatarThumbKey: string | null;
+        };
+      }
+    > => {
+      const row: FakeCommentRow = {
+        id: randomUUID(),
+        postId: data.postId,
+        authorId: data.authorId,
+        text: data.text,
+        parentId: data.parentId ?? null,
+        deletedAt: null,
+        createdAt: new Date(),
+      };
+      this.comments.push(row);
+      const result: FakeCommentRow & {
+        author?: {
+          username: string | null;
+          displayName: string | null;
+          avatarThumbKey: string | null;
+        };
+      } = { ...row };
+      if (include?.author) {
+        const user = this.users.find((u) => u.id === data.authorId);
+        result.author = user
+          ? {
+              username: user.username,
+              displayName: user.displayName,
+              avatarThumbKey: user.avatarThumbKey,
+            }
+          : { username: "unknown", displayName: null, avatarThumbKey: null };
+      }
+      return result;
+    },
+
+    findFirst: async ({
+      where,
+      select,
+    }: {
+      where: { id?: string; postId?: string; deletedAt?: null };
+      select?: Record<string, boolean>;
+    }): Promise<FakeCommentRow | null> => {
+      const row = this.comments.find(
+        (c) =>
+          (where.id === undefined || c.id === where.id) &&
+          (where.postId === undefined || c.postId === where.postId) &&
+          (where.deletedAt === undefined || c.deletedAt === null),
+      );
+      if (!row) return null;
+      if (select) {
+        const partial: Record<string, unknown> = {};
+        for (const key of Object.keys(select)) {
+          if (key in row) {
+            partial[key] = (row as unknown as Record<string, unknown>)[key];
+          }
+        }
+        return partial as unknown as FakeCommentRow;
+      }
+      return { ...row };
+    },
+
+    findUnique: async ({ where }: { where: { id: string } }): Promise<FakeCommentRow | null> =>
+      this.comments.find((c) => c.id === where.id && c.deletedAt === null) ?? null,
+
+    findMany: async ({
+      where,
+      include,
+      orderBy,
+      take,
+    }: {
+      where: {
+        postId?: string;
+        parentId?: string | null;
+        deletedAt?: null;
+        createdAt?: { lt?: Date };
+      };
+      include?: {
+        author?: {
+          select: { username: boolean; displayName: boolean; avatarThumbKey: boolean };
+        };
+        _count?: { select: { replies: boolean } };
+      };
+      orderBy?: { createdAt: string };
+      take?: number;
+    }): Promise<
+      (FakeCommentRow & {
+        author?: {
+          username: string | null;
+          displayName: string | null;
+          avatarThumbKey: string | null;
+        };
+        _count?: { replies: number };
+      })[]
+    > => {
+      let filtered = this.comments.filter((c) => {
+        const matchPost = where.postId === undefined || c.postId === where.postId;
+        const matchParent =
+          where.parentId === undefined ||
+          (where.parentId === null ? c.parentId === null : c.parentId === where.parentId);
+        const matchDeleted = where.deletedAt === undefined || c.deletedAt === null;
+        const matchCursor = where.createdAt?.lt === undefined || c.createdAt < where.createdAt.lt;
+        return matchPost && matchParent && matchDeleted && matchCursor;
+      });
+      if (orderBy?.createdAt === "desc") {
+        filtered = filtered.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+      }
+      if (take !== undefined) {
+        filtered = filtered.slice(0, take);
+      }
+      return filtered.map((c) => {
+        const result: FakeCommentRow & {
+          author?: {
+            username: string | null;
+            displayName: string | null;
+            avatarThumbKey: string | null;
+          };
+          _count?: { replies: number };
+        } = { ...c };
+        if (include?.author) {
+          const user = this.users.find((u) => u.id === c.authorId);
+          result.author = user
+            ? {
+                username: user.username,
+                displayName: user.displayName,
+                avatarThumbKey: user.avatarThumbKey,
+              }
+            : { username: "unknown", displayName: null, avatarThumbKey: null };
+        }
+        if (include?._count?.select?.replies) {
+          result._count = {
+            replies: this.comments.filter((r) => r.parentId === c.id && r.deletedAt === null)
+              .length,
+          };
+        }
+        return result;
+      });
+    },
+
+    delete: async ({ where }: { where: { id: string } }): Promise<FakeCommentRow> => {
+      const row = this.comments.find((c) => c.id === where.id);
+      if (!row) throw new Error("comment.delete: not found");
+      row.deletedAt = new Date();
+      return { ...row };
+    },
+
+    count: async ({
+      where,
+    }: {
+      where: { postId?: string; parentId?: string | null; deletedAt?: null };
+    }): Promise<number> =>
+      this.comments.filter(
+        (c) =>
+          (where.postId === undefined || c.postId === where.postId) &&
+          (where.parentId === undefined ||
+            (where.parentId === null ? c.parentId === null : c.parentId === where.parentId)) &&
+          (where.deletedAt === undefined || c.deletedAt === null),
+      ).length,
   };
 
   async $transaction<T>(fnOrOps: ((tx: FakePrisma) => Promise<T>) | unknown[]): Promise<T> {

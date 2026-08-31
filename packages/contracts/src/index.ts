@@ -328,6 +328,9 @@ export const PostResponseSchema = z.object({
   author: PostAuthorSchema,
   text: z.string().nullable(),
   media: z.array(PostMediaSchema),
+  likesCount: z.number().int(),
+  commentsCount: z.number().int(),
+  isLiked: z.boolean().optional(),
   createdAt: z.string(),
   editedAt: z.string().nullable(),
 });
@@ -403,3 +406,76 @@ export const FeedResponseSchema = z.object({
 });
 
 export type FeedResponse = z.infer<typeof FeedResponseSchema>;
+
+// ---------------------------------------------------------------------------
+// Spec 006 — Likes y Comentarios
+// ---------------------------------------------------------------------------
+
+/** Respuesta de like/unlike (spec 006 RF-1/RF-2). */
+export const LikeResponseSchema = z.object({
+  liked: z.boolean(),
+  likesCount: z.number().int(),
+});
+
+export type LikeResponse = z.infer<typeof LikeResponseSchema>;
+
+/** Solicitud de creacion de comentario (spec 006 RF-6). */
+export const CreateCommentRequestSchema = z
+  .object({
+    text: z
+      .string()
+      .trim()
+      .min(1, "El comentario no puede estar vacio")
+      .max(500, "El comentario no puede exceder 500 caracteres"),
+    parentId: z.string().uuid().optional(),
+  })
+  .strict();
+
+export type CreateCommentRequest = z.infer<typeof CreateCommentRequestSchema>;
+
+/** Autor de un comentario. */
+export const CommentAuthorSchema = z.object({
+  username: z.string(),
+  displayName: z.string().nullable(),
+  avatarUrl: z.string().nullable(),
+});
+
+export type CommentAuthor = z.infer<typeof CommentAuthorSchema>;
+
+/** Respuesta de un comentario (spec 006 RF-8). */
+export const CommentResponseSchema: z.ZodType<{
+  id: string;
+  postId: string;
+  author: CommentAuthor;
+  text: string;
+  parentId: string | null;
+  replies: unknown[];
+  createdAt: string;
+}> = z.object({
+  id: z.string().uuid(),
+  postId: z.string().uuid(),
+  author: CommentAuthorSchema,
+  text: z.string(),
+  parentId: z.string().uuid().nullable(),
+  replies: z.lazy(() => z.array(CommentResponseSchema)),
+  createdAt: z.string(),
+});
+
+export type CommentResponse = z.infer<typeof CommentResponseSchema>;
+
+/** Query params para comentarios paginados (spec 006 RF-8). */
+export const CommentsQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(50).default(20),
+  createdBefore: z.string().datetime().optional(),
+});
+
+export type CommentsQuery = z.infer<typeof CommentsQuerySchema>;
+
+/** Respuesta paginada de comentarios (spec 006 RF-8). */
+export const CommentsResponseSchema = z.object({
+  items: z.array(CommentResponseSchema),
+  nextCursor: z.string().nullable(),
+  total: z.number().int(),
+});
+
+export type CommentsResponse = z.infer<typeof CommentsResponseSchema>;

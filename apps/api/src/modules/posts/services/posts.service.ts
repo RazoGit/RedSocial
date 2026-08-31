@@ -1,8 +1,22 @@
-import { ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
+import {
+  ForbiddenException,
+  Inject,
+  Injectable,
+  NotFoundException,
+  Optional,
+} from "@nestjs/common";
+import { InjectQueue } from "@nestjs/bullmq";
+import type { Queue } from "bullmq";
 
 import type { CreatePostRequest, PaginatedPostsResponse, PostResponse } from "@redsocial/contracts";
 
 import { PrismaService } from "../../prisma/prisma.service";
+import { FeedCacheService } from "../../follows/services/feed-cache.service";
+import {
+  FEED_FANOUT_QUEUE,
+  type FeedFanoutPayload,
+} from "../../follows/services/feed-fanout.worker";
+import { LikesService } from "../../likes/likes.service";
 import { StorageService } from "./storage.service";
 import { PostMediaService } from "./post-media.service";
 
@@ -16,9 +30,14 @@ export class PostsService {
     private readonly prisma: PrismaService,
     private readonly storage: StorageService,
     private readonly postMedia: PostMediaService,
+    @Inject(FeedCacheService) @Optional() private readonly feedCache: FeedCacheService | null,
+    @InjectQueue(FEED_FANOUT_QUEUE)
+    @Optional()
+    private readonly fanoutQueue: Queue<FeedFanoutPayload> | null,
+    private readonly likesService: LikesService,
   ) {}
 
-  /** T6: crear post con texto y opcionalmente mediaKeys. */
+  /** T6: crear post con texto y opcionalmente mediaKeys. T11: encola fan-out a feeds. */
   async create(authorId: string, dto: CreatePostRequest): Promise<PostResponse> {
     const post = await this.prisma.post.create({
       data: {
@@ -50,6 +69,20 @@ export class PostsService {
       }
     }
 
+    // T11: encola fan-out del post al feed de seguidores
+    if (this.fanoutQueue) {
+      await this.fanoutQueue.add(
+        "fan-out-post",
+        { postId: post.id, authorId, createdAt: post.createdAt.toISOString() },
+        {
+          attempts: 3,
+          backoff: { type: "exponential", delay: 1_000 },
+          removeOnComplete: true,
+          removeOnFail: { age: 24 * 3600 },
+        },
+      );
+    }
+
     const author = await this.prisma.user.findUniqueOrThrow({
       where: { id: authorId },
       select: { username: true, displayName: true, avatarThumbKey: true },
@@ -64,6 +97,8 @@ export class PostsService {
       },
       text: dto.text ?? null,
       media: mediaItems,
+      likesCount: 0,
+      commentsCount: 0,
       createdAt: post.createdAt.toISOString(),
       editedAt: null,
     };
@@ -96,6 +131,8 @@ export class PostsService {
       throw new NotFoundException("post_not_found");
     }
 
+    const isLiked = viewerId ? await this.likesService.isLiked(viewerId, postId) : undefined;
+
     return {
       id: post.id,
       author: {
@@ -112,6 +149,9 @@ export class PostsService {
         height: m.height,
         contentType: m.contentType,
       })),
+      likesCount: post.likesCount,
+      commentsCount: post.commentsCount,
+      ...(isLiked !== undefined ? { isLiked } : {}),
       createdAt: post.createdAt.toISOString(),
       editedAt: post.editedAt?.toISOString() ?? null,
     };
@@ -140,7 +180,7 @@ export class PostsService {
     return this.findById(postId, authorId);
   }
 
-  /** T9: borrado logico de post (solo autor). */
+  /** T9: borrado logico de post (solo autor). T10: invalida feed cache. */
   async softDelete(postId: string, authorId: string): Promise<void> {
     const post = await this.prisma.post.findUnique({
       where: { id: postId },
@@ -159,6 +199,11 @@ export class PostsService {
       where: { id: postId },
       data: { deletedAt: new Date() },
     });
+
+    // T10: invalidar el post de los feeds en Redis
+    if (this.feedCache) {
+      await this.feedCache.removePostFromFeeds(postId);
+    }
   }
 
   /** T10: feed propio paginado cursor-based. */
@@ -166,6 +211,7 @@ export class PostsService {
     authorUsername: string,
     limit: number,
     createdBefore?: string,
+    viewerId?: string,
   ): Promise<PaginatedPostsResponse> {
     const author = await this.prisma.user.findFirst({
       where: { username: authorUsername, deletedAt: null },
@@ -197,6 +243,13 @@ export class PostsService {
     const nextCursor =
       hasMore && items.length > 0 ? items[items.length - 1]!.createdAt.toISOString() : null;
 
+    const likedPostIds = viewerId
+      ? await this.likesService.getLikedPostIds(
+          viewerId,
+          items.map((p) => p.id),
+        )
+      : new Set<string>();
+
     return {
       items: items.map((post) => ({
         id: post.id,
@@ -214,6 +267,9 @@ export class PostsService {
           height: m.height,
           contentType: m.contentType,
         })),
+        likesCount: post.likesCount,
+        commentsCount: post.commentsCount,
+        ...(viewerId ? { isLiked: likedPostIds.has(post.id) } : {}),
         createdAt: post.createdAt.toISOString(),
         editedAt: post.editedAt?.toISOString() ?? null,
       })),

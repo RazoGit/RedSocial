@@ -124,7 +124,13 @@ export class PostsController {
   async findByAuthor(
     @Param("username") username: string,
     @Query(new ZodValidationPipe(CursorPaginationSchema)) query: CursorPagination,
+    @Req() req: RequestWithUser,
   ) {
-    return this.postsService.findByAuthor(username, query.limit, query.createdBefore);
+    return this.postsService.findByAuthor(
+      username,
+      query.limit,
+      query.createdBefore,
+      req.user?.sub,
+    );
   }
 }
