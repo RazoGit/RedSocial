@@ -8,8 +8,11 @@ import { CommentsModule } from "./modules/comments/comments.module";
 import { FollowsModule } from "./modules/follows/follows.module";
 import { HealthModule } from "./modules/health/health.module";
 import { LikesModule } from "./modules/likes/likes.module";
+import { NotificationsModule } from "./modules/notifications/notifications.module";
 import { PostsModule } from "./modules/posts/posts.module";
+import { PresenceModule } from "./modules/presence/presence.module";
 import { PrismaModule } from "./modules/prisma/prisma.module";
+import { RealtimeModule } from "./modules/realtime/realtime.module";
 import { UsersModule } from "./modules/users/users.module";
 
 @Module({
@@ -22,6 +25,9 @@ import { UsersModule } from "./modules/users/users.module";
     FollowsModule,
     LikesModule,
     CommentsModule,
+    PresenceModule,
+    RealtimeModule,
+    NotificationsModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: JwtAuthGuard },

@@ -7,13 +7,18 @@ import {
 import type { FollowResponse } from "@redsocial/contracts";
 
 import { PrismaService } from "../../prisma/prisma.service";
+import { NotificationsService } from "../../notifications/notifications.service";
 
 /**
  * Servicio de grafo social (spec 005). Follow/unfollow con contadores atómicos.
+ * Spec 007/T15: al seguir una cuenta publica se nota al seguido.
  */
 @Injectable()
 export class FollowsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly notifications: NotificationsService,
+  ) {}
 
   /**
    * T7: Seguir a un usuario. Transacción atómica para incrementar contadores.
@@ -21,7 +26,7 @@ export class FollowsService {
   async follow(followerId: string, targetUsername: string): Promise<FollowResponse> {
     const target = await this.prisma.user.findFirst({
       where: { username: targetUsername, deletedAt: null },
-      select: { id: true },
+      select: { id: true, isPrivate: true },
     });
 
     if (!target) {
@@ -65,6 +70,14 @@ export class FollowsService {
         select: { followersCount: true },
       }),
     ]);
+
+    // Spec 007/T15: notificar al seguido solo si la cuenta es publica.
+    if (!target.isPrivate) {
+      await this.notifications.create(target.id, {
+        actorId: followerId,
+        type: "follow",
+      });
+    }
 
     return {
       following: true,

@@ -2,6 +2,7 @@ import { Module } from "@nestjs/common";
 import { BullModule } from "@nestjs/bullmq";
 
 import { LikesModule } from "../likes/likes.module";
+import { NotificationsModule } from "../notifications/notifications.module";
 import { FeedController } from "./feed.controller";
 import { FollowsController } from "./follows.controller";
 import { FeedCacheService, feedRedisClientProvider } from "./services/feed-cache.service";
@@ -19,6 +20,7 @@ const disabled = process.env.MEDIA_DISABLED === "true";
 @Module({
   imports: [
     LikesModule,
+    NotificationsModule,
     ...(disabled ? [] : [BullModule.registerQueue({ name: FEED_FANOUT_QUEUE })]),
   ],
   controllers: [FollowsController, FeedController],

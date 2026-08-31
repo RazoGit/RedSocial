@@ -223,6 +223,7 @@ export const UserProfileResponseSchema = z.object({
   followersCount: z.number().int(),
   followingCount: z.number().int(),
   isFollowing: z.boolean().optional(),
+  isOnline: z.boolean().optional(),
 });
 
 export type UserProfileResponse = z.infer<typeof UserProfileResponseSchema>;
@@ -479,3 +480,83 @@ export const CommentsResponseSchema = z.object({
 });
 
 export type CommentsResponse = z.infer<typeof CommentsResponseSchema>;
+
+// ---------------------------------------------------------------------------
+// Spec 007 — Tiempo Real y Notificaciones
+// ---------------------------------------------------------------------------
+
+export const NotificationTypeSchema = z.enum(["like", "comment", "reply", "follow"]);
+
+export type NotificationType = z.infer<typeof NotificationTypeSchema>;
+
+/** Actor dentro de una notificacion (spec 007 RF-5). */
+export const NotificationActorSchema = z.object({
+  id: z.string().uuid(),
+  username: z.string(),
+  displayName: z.string().nullable(),
+  avatarUrl: z.string().nullable(),
+});
+
+export type NotificationActor = z.infer<typeof NotificationActorSchema>;
+
+/** Notificacion persistida (spec 007 RF-2..RF-4). */
+export const NotificationSchema = z.object({
+  id: z.string().uuid(),
+  type: NotificationTypeSchema,
+  actor: NotificationActorSchema,
+  postId: z.string().uuid().nullable(),
+  commentId: z.string().uuid().nullable(),
+  read: z.boolean(),
+  createdAt: z.string(),
+});
+
+export type Notification = z.infer<typeof NotificationSchema>;
+
+/** Query params para notificaciones paginadas (spec 007 RF-5). */
+export const NotificationsQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(50).default(20),
+  createdBefore: z.string().datetime().optional(),
+});
+
+export type NotificationsQuery = z.infer<typeof NotificationsQuerySchema>;
+
+/** Respuesta paginada de notificaciones (spec 007 RF-5). */
+export const NotificationsResponseSchema = z.object({
+  items: z.array(NotificationSchema),
+  nextCursor: z.string().nullable(),
+  unreadCount: z.number().int().min(0),
+});
+
+export type NotificationsResponse = z.infer<typeof NotificationsResponseSchema>;
+
+/** Conteo de no leidas (spec 007 RF-7). */
+export const UnreadCountResponseSchema = z.object({
+  unreadCount: z.number().int().min(0),
+});
+
+export type UnreadCountResponse = z.infer<typeof UnreadCountResponseSchema>;
+
+/** Marcar un subconjunto de notificaciones como leidas (opcional). */
+export const MarkNotificationsReadRequestSchema = z
+  .object({
+    ids: z.array(z.string().uuid()).max(100).optional(),
+  })
+  .strict();
+
+export type MarkNotificationsReadRequest = z.infer<typeof MarkNotificationsReadRequestSchema>;
+
+/** Payload WS server->client `notification:new` (spec 007 RF-7). */
+export const NotificationNewEventSchema = z.object({
+  notification: NotificationSchema,
+  unreadCount: z.number().int().min(0),
+});
+
+export type NotificationNewEvent = z.infer<typeof NotificationNewEventSchema>;
+
+/** Payload WS server->client `presence:change` (spec 007 RF-8). */
+export const PresenceChangeEventSchema = z.object({
+  userId: z.string().uuid(),
+  online: z.boolean(),
+});
+
+export type PresenceChangeEvent = z.infer<typeof PresenceChangeEventSchema>;

@@ -42,6 +42,8 @@ model User {
   followers         Follow[] @relation("followers")
   likes             Like[]
   comments          Comment[]
+  notificationsReceived Notification[] @relation("NotificationReceiver")
+  notificationsActed    Notification[] @relation("NotificationActor")
 
   @@map("users")
 }
@@ -206,4 +208,31 @@ model Comment {
   @@index([postId, createdAt(sort: Asc)])
   @@index([parentId])
   @@map("comments")
+}
+
+enum NotificationType {
+  like
+  comment
+  reply
+  follow
+}
+
+/// Notificacion persistida para el receptor (spec 007). Fuente de verdad del
+/// unreadCount. sin FK a posts/comments para conservar el historial tras borrado.
+model Notification {
+  id        String           @id @default(uuid()) @db.Uuid
+  userId    String           @map("user_id") @db.Uuid
+  actorId   String           @map("actor_id") @db.Uuid
+  type      NotificationType
+  postId    String?          @map("post_id") @db.Uuid
+  commentId String?          @map("comment_id") @db.Uuid
+  readAt    DateTime?        @map("read_at") @db.Timestamptz(3)
+  createdAt DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  user  User @relation("NotificationReceiver", fields: [userId], references: [id], onDelete: Cascade)
+  actor User @relation("NotificationActor", fields: [actorId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([userId, readAt])
+  @@map("notifications")
 }

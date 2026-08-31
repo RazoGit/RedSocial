@@ -2,13 +2,18 @@ import { ConflictException, Injectable, NotFoundException } from "@nestjs/common
 import type { LikeResponse } from "@redsocial/contracts";
 
 import { PrismaService } from "../prisma/prisma.service";
+import { NotificationsService } from "../notifications/notifications.service";
 
 /**
  * Servicio de likes (spec 006). Like/unlike con contadores atomicos.
+ * Spec 007/T13: al dar like a un post ajeno se nota al autor (post-commit).
  */
 @Injectable()
 export class LikesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly notifications: NotificationsService,
+  ) {}
 
   /**
    * T7: Dar like a un post. Transaccion atomica para incrementar contador.
@@ -16,7 +21,7 @@ export class LikesService {
   async like(userId: string, postId: string): Promise<LikeResponse> {
     const post = await this.prisma.post.findFirst({
       where: { id: postId, deletedAt: null },
-      select: { id: true },
+      select: { id: true, authorId: true },
     });
 
     if (!post) {
@@ -41,6 +46,15 @@ export class LikesService {
         data: { likesCount: { increment: 1 } },
       }),
     ]);
+
+    // Spec 007/T13: notificar al autor solo si el like es ajeno.
+    if (post.authorId !== userId) {
+      await this.notifications.create(post.authorId, {
+        actorId: userId,
+        type: "like",
+        postId,
+      });
+    }
 
     const updatedPost = await this.prisma.post.findUniqueOrThrow({
       where: { id: postId },

@@ -10,6 +10,7 @@ import { StorageService } from "./services/storage.service";
 import { LikesService } from "../likes/likes.service";
 import { FakePrisma } from "../../testing/fake-prisma";
 import type { PrismaService } from "../prisma/prisma.service";
+import { NotificationsService } from "../notifications/notifications.service";
 
 function makeService(prisma: FakePrisma) {
   const storage = { presignPutUrl: vi.fn() } as unknown as StorageService;
@@ -19,7 +20,14 @@ function makeService(prisma: FakePrisma) {
   } as unknown as Queue);
   const feedCache = { removePostFromFeeds: vi.fn().mockResolvedValue(undefined) };
   const fanoutQueue = { add: vi.fn().mockResolvedValue(undefined) };
-  const likesService = new LikesService(prisma as unknown as PrismaService);
+  const notifications = new NotificationsService(
+    prisma as unknown as PrismaService,
+    {
+      emitNotificationNew: vi.fn(),
+      emitUnreadCount: vi.fn(),
+    } as never,
+  );
+  const likesService = new LikesService(prisma as unknown as PrismaService, notifications);
   const service = new PostsService(
     prisma as unknown as PrismaService,
     storage,

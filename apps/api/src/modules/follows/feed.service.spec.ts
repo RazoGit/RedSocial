@@ -1,12 +1,20 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { FeedService } from "./services/feed.service";
 import { LikesService } from "../likes/likes.service";
 import { FakePrisma } from "../../testing/fake-prisma";
 import type { PrismaService } from "../prisma/prisma.service";
+import { NotificationsService } from "../notifications/notifications.service";
 
 function makeService(prisma: FakePrisma) {
-  const likesService = new LikesService(prisma as unknown as PrismaService);
+  const notifications = new NotificationsService(
+    prisma as unknown as PrismaService,
+    {
+      emitNotificationNew: vi.fn(),
+      emitUnreadCount: vi.fn(),
+    } as never,
+  );
+  const likesService = new LikesService(prisma as unknown as PrismaService, notifications);
   return new FeedService(prisma as unknown as PrismaService, null, likesService);
 }
 

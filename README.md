@@ -32,9 +32,16 @@ tareas; el código solo llega cuando la prueba de aceptación está definida.
 > conectado (username, nombre, bio, privacidad, avatar), perfil público con cache,
 > disponibilidad de username con debounce.
 >
-> 🔄 **Spec 004 — Posts y Contenido:** en progreso. Backend completo (CRUD posts,
-> media presign, feed paginado). Frontend: composer, detalle y grid de perfil.
-> Pendiente: tests unitarios/integración y smoke E2E. Ver `specs/004-posts/tasks.md`.
+> ✅ **Spec 004 — Posts y Contenido:** completa (T1–T17). CRUD de posts, media presign
+> con resize/thumbnails, feed paginado. Unit + integración, 258 tests backend en total.
+>
+> ✅ **Spec 005 — Grafo Social y Feed:** completa (T1–T20). Follow/unfollow con
+> contadores atómicos, feed cronológico con fan-out Redis (cap 10 000, LTRIM 1000,
+> TTL 7 días), botón seguir optimista.
+>
+> ✅ **Spec 006 — Likes y Comentarios:** completa (T1–T20). Like/unlike idempotente,
+> comentarios con respuestas 1 nivel, contadores atómicos, frontend con likes y
+> respuestas. Smoke E2E en vivo con Docker verde (2026-08-30).
 
 ## Arquitectura
 
@@ -154,7 +161,9 @@ Las especificaciones completadas y activas:
 
 - [`specs/001-autenticacion`](specs/001-autenticacion/tasks.md) ✅ — Auth y sesiones
 - [`specs/002-usuarios-perfiles`](specs/002-usuarios-perfiles/tasks.md) ✅ — Usuarios y perfiles
-- [`specs/004-posts`](specs/004-posts/tasks.md) 🔄 — Posts y contenido (Fase 4)
+- [`specs/004-posts`](specs/004-posts/tasks.md) ✅ — Posts y contenido
+- [`specs/005-social-graph`](specs/005-social-graph/tasks.md) ✅ — Grafo social y feed
+- [`specs/006-likes-comentarios`](specs/006-likes-comentarios/tasks.md) ✅ — Likes y comentarios
 
 ## Roadmap
 
@@ -163,8 +172,10 @@ Las especificaciones completadas y activas:
 - [x] Fase 2 — Infraestructura de datos y primitivas de seguridad
 - [x] Fase 3 — Autenticación completa (spec 001)
 - [x] Fase 4 — Usuarios y perfiles (spec 002)
-- [ ] Fase 5 — Posts y contenido (spec 004) ← **actual**
-- [ ] Feed, multimedia (MinIO) y notificaciones
+- [x] Fase 5 — Posts y contenido (spec 004)
+- [x] Fase 6 — Grafo social y feed (spec 005)
+- [x] Fase 7 — Likes y comentarios (spec 006)
+- [ ] Tiempo real y notificaciones (spec 007) ← **actual**
 - [ ] Despliegue en free tier
 
 ---

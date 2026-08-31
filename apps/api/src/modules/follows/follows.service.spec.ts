@@ -1,12 +1,20 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { BadRequestException, ConflictException, NotFoundException } from "@nestjs/common";
 
 import { FollowsService } from "./services/follows.service";
 import { FakePrisma } from "../../testing/fake-prisma";
 import type { PrismaService } from "../prisma/prisma.service";
+import { NotificationsService } from "../notifications/notifications.service";
 
 function makeService(prisma: FakePrisma) {
-  return new FollowsService(prisma as unknown as PrismaService);
+  const notifications = new NotificationsService(
+    prisma as unknown as PrismaService,
+    {
+      emitNotificationNew: vi.fn(),
+      emitUnreadCount: vi.fn(),
+    } as never,
+  );
+  return new FollowsService(prisma as unknown as PrismaService, notifications);
 }
 
 describe("FollowsService", () => {
@@ -160,6 +168,54 @@ describe("FollowsService", () => {
       expect(followerIds).toContain(bob.id);
       expect(followerIds).toContain(charlie.id);
       expect(followerIds).toHaveLength(2);
+    });
+  });
+
+  describe("notificaciones (spec 007/T15)", () => {
+    it("follow a cuenta publica crea Notification type=follow", async () => {
+      const prisma = new FakePrisma();
+      const service = makeService(prisma);
+      const alice = await prisma.user.create({
+        data: { email: "alice@test.com", username: "alice" },
+      });
+      const bob = await prisma.user.create({
+        data: { email: "bob@test.com", username: "bob" },
+      });
+
+      await service.follow(alice.id, "bob");
+
+      expect(prisma.notifications).toHaveLength(1);
+      const n = prisma.notifications[0];
+      expect(n?.userId).toBe(bob.id);
+      expect(n?.actorId).toBe(alice.id);
+      expect(n?.type).toBe("follow");
+    });
+
+    it("follow a cuenta privada no crea notificacion", async () => {
+      const prisma = new FakePrisma();
+      const service = makeService(prisma);
+      const alice = await prisma.user.create({
+        data: { email: "alice@test.com", username: "alice" },
+      });
+      await prisma.user.create({
+        data: { email: "bob@test.com", username: "bob", isPrivate: true },
+      });
+
+      await service.follow(alice.id, "bob");
+
+      expect(prisma.notifications).toHaveLength(0);
+    });
+
+    it("self-follow no crea notificacion", async () => {
+      const prisma = new FakePrisma();
+      const service = makeService(prisma);
+      const alice = await prisma.user.create({
+        data: { email: "alice@test.com", username: "alice" },
+      });
+
+      await service.follow(alice.id, "alice").catch(() => {});
+
+      expect(prisma.notifications).toHaveLength(0);
     });
   });
 });

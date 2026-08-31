@@ -49,4 +49,4 @@
 - [x] Todas las tareas marcadas y sus criterios demostrados
 - [x] Criterios Gherkin de spec.md automatizados (unit/integracion segun plan S6)
 - [x] Cobertura >=75% (likes/comments 98.46%) · CI verde · contrato OpenAPI sin breaking changes vs v0
-- [ ] Likes y comments probados con Docker (Redis + PostgreSQL) — pendiente Docker activo para smoke E2E en vivo
+- [x] Likes y comments probados con Docker (Redis + PostgreSQL): smoke E2E en vivo `SMOKE-OK-006` (18 aserciones HTTP) el 2026-08-30. De paso se corrigio `GET /posts/:id` y `GET /posts/user/:username` para resolver el viewer con `OptionalJwtAuthGuard` y asi incluir `isLiked` cuando hay token (T12).

@@ -16,6 +16,7 @@ import type {
 import type { User } from "@prisma/client";
 
 import { PrismaService } from "../prisma/prisma.service";
+import { PresenceService } from "../presence/presence.service";
 import { StorageService } from "./services/storage.service";
 import { UsernameService } from "./services/username.service";
 import { CachedProfile, ProfileCacheService } from "./services/profile-cache.service";
@@ -40,6 +41,7 @@ export class UsersService {
     private readonly usernameService: UsernameService,
     private readonly storage: StorageService,
     private readonly cache: ProfileCacheService,
+    private readonly presence: PresenceService,
   ) {}
 
   async getMe(userId: string): Promise<MeProfileResponse> {
@@ -135,6 +137,9 @@ export class UsersService {
     }
 
     if (!snapshot.isPrivate || viewerId === snapshot.id) {
+      // RF-9 (spec 007): presencia visible solo cuando el perfil no es privado
+      // o el consultante es el propio usuario.
+      const isOnline = await this.presence.isOnline(snapshot.id);
       // Si el viewer esta autenticado, agregar isFollowing
       if (viewerId && viewerId !== snapshot.id) {
         const isFollowing = await this.prisma.follow.findUnique({
@@ -145,9 +150,9 @@ export class UsersService {
             },
           },
         });
-        return { ...snapshot, isFollowing: isFollowing !== null };
+        return { ...snapshot, isFollowing: isFollowing !== null, isOnline };
       }
-      return snapshot;
+      return { ...snapshot, isOnline };
     }
     return this.toMinimal(snapshot);
   }

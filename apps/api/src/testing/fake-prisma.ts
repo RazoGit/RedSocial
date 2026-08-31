@@ -113,6 +113,17 @@ export interface FakeCommentRow {
   createdAt: Date;
 }
 
+export interface FakeNotificationRow {
+  id: string;
+  userId: string;
+  actorId: string;
+  type: "like" | "comment" | "reply" | "follow";
+  postId: string | null;
+  commentId: string | null;
+  readAt: Date | null;
+  createdAt: Date;
+}
+
 interface UniqueConstraintError extends Error {
   code: string;
 }
@@ -133,6 +144,7 @@ export class FakePrisma {
   readonly follows: FakeFollowRow[] = [];
   readonly likes: FakeLikeRow[] = [];
   readonly comments: FakeCommentRow[] = [];
+  readonly notifications: FakeNotificationRow[] = [];
 
   readonly user = {
     findUnique: async ({
@@ -179,6 +191,7 @@ export class FakePrisma {
         passwordHash?: string | null;
         emailVerified?: boolean;
         username?: string | null;
+        isPrivate?: boolean;
       };
     }): Promise<FakeUserRow> => {
       if (this.users.some((u) => u.email.toLowerCase() === data.email.toLowerCase())) {
@@ -206,7 +219,7 @@ export class FakePrisma {
         avatarKey: null,
         avatarThumbKey: null,
         avatarBlurhash: null,
-        isPrivate: false,
+        isPrivate: data.isPrivate ?? false,
         usernameChangedAt: null,
         followersCount: 0,
         followingCount: 0,
@@ -996,6 +1009,132 @@ export class FakePrisma {
             (where.parentId === null ? c.parentId === null : c.parentId === where.parentId)) &&
           (where.deletedAt === undefined || c.deletedAt === null),
       ).length,
+  };
+
+  readonly notification = {
+    create: async ({
+      data,
+    }: {
+      data: {
+        userId: string;
+        actorId: string;
+        type: FakeNotificationRow["type"];
+        postId?: string | null;
+        commentId?: string | null;
+      };
+    }): Promise<FakeNotificationRow> => {
+      const row: FakeNotificationRow = {
+        id: randomUUID(),
+        userId: data.userId,
+        actorId: data.actorId,
+        type: data.type,
+        postId: data.postId ?? null,
+        commentId: data.commentId ?? null,
+        readAt: null,
+        createdAt: new Date(),
+      };
+      this.notifications.push(row);
+      return { ...row };
+    },
+
+    count: async ({ where }: { where: { userId?: string; readAt?: null } }): Promise<number> =>
+      this.notifications.filter(
+        (n) =>
+          (where.userId === undefined || n.userId === where.userId) &&
+          (where.readAt === null ? n.readAt === null : true),
+      ).length,
+
+    findMany: async ({
+      where,
+      orderBy,
+      take,
+      include,
+    }: {
+      where: {
+        userId: string;
+        createdAt?: { lt?: Date };
+      };
+      orderBy?: { createdAt: string };
+      take?: number;
+      include?: {
+        actor?: { select: Record<string, boolean> };
+      };
+    }): Promise<
+      (FakeNotificationRow & {
+        actor?: {
+          id: string;
+          username: string | null;
+          displayName: string | null;
+          avatarThumbKey: string | null;
+        };
+      })[]
+    > => {
+      let filtered = this.notifications.filter((n) => {
+        const matchUser = n.userId === where.userId;
+        const matchCursor = where.createdAt?.lt === undefined || n.createdAt < where.createdAt.lt;
+        return matchUser && matchCursor;
+      });
+      if (orderBy?.createdAt === "desc") {
+        filtered = filtered.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+      }
+      if (take !== undefined) {
+        filtered = filtered.slice(0, take);
+      }
+      return filtered.map((n) => {
+        const result: FakeNotificationRow & {
+          actor?: {
+            id: string;
+            username: string | null;
+            displayName: string | null;
+            avatarThumbKey: string | null;
+          };
+        } = { ...n };
+        if (include?.actor) {
+          const user = this.users.find((u) => u.id === n.actorId);
+          result.actor = user
+            ? {
+                id: user.id,
+                username: user.username,
+                displayName: user.displayName,
+                avatarThumbKey: user.avatarThumbKey,
+              }
+            : { id: n.actorId, username: null, displayName: null, avatarThumbKey: null };
+        }
+        return result;
+      });
+    },
+
+    findUnique: async ({ where }: { where: { id: string } }): Promise<FakeNotificationRow | null> =>
+      this.notifications.find((n) => n.id === where.id) ?? null,
+
+    updateMany: async ({
+      where,
+      data,
+    }: {
+      where: {
+        userId: string;
+        id?: string | { in: string[] };
+        readAt?: null;
+      };
+      data: { readAt: Date };
+    }): Promise<{ count: number }> => {
+      let count = 0;
+      const idMatch = (n: { id: string }): boolean => {
+        if (where.id === undefined) return true;
+        if (typeof where.id === "string") return n.id === where.id;
+        return where.id.in.includes(n.id);
+      };
+      for (const n of this.notifications) {
+        const matchUser = n.userId === where.userId;
+        const matchId = idMatch(n);
+        const matchUnread = where.readAt === null ? n.readAt === null : true;
+        if (matchUser && matchId && matchUnread) {
+          n.readAt = data.readAt;
+          count += 1;
+        }
+      }
+      return { count };
+    },
   };
 
   async $transaction<T>(fnOrOps: ((tx: FakePrisma) => Promise<T>) | unknown[]): Promise<T> {

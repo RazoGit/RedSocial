@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { ConflictException, NotFoundException } from "@nestjs/common";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -6,9 +6,17 @@ import { join } from "node:path";
 import { LikesService } from "./likes.service";
 import { FakePrisma } from "../../testing/fake-prisma";
 import type { PrismaService } from "../prisma/prisma.service";
+import { NotificationsService } from "../notifications/notifications.service";
 
 function makeService(prisma: FakePrisma) {
-  return new LikesService(prisma as unknown as PrismaService);
+  const notifications = new NotificationsService(
+    prisma as unknown as PrismaService,
+    {
+      emitNotificationNew: vi.fn(),
+      emitUnreadCount: vi.fn(),
+    } as never,
+  );
+  return new LikesService(prisma as unknown as PrismaService, notifications);
 }
 
 describe("LikesService", () => {
@@ -129,6 +137,42 @@ describe("LikesService", () => {
       expect(ids).toContain(post1.id);
       expect(ids).toContain(post2.id);
       expect(ids).toHaveLength(2);
+    });
+  });
+
+  describe("notificaciones (spec 007/T13)", () => {
+    it("like ajeno crea Notification type=like para el autor", async () => {
+      const prisma = new FakePrisma();
+      const service = makeService(prisma);
+      const alice = await prisma.user.create({
+        data: { email: "alice@test.com", username: "alice" },
+      });
+      const bob = await prisma.user.create({
+        data: { email: "bob@test.com", username: "bob" },
+      });
+      const post = await prisma.post.create({ data: { authorId: alice.id, text: "post" } });
+
+      await service.like(bob.id, post.id);
+
+      expect(prisma.notifications).toHaveLength(1);
+      const n = prisma.notifications[0];
+      expect(n?.userId).toBe(alice.id);
+      expect(n?.actorId).toBe(bob.id);
+      expect(n?.type).toBe("like");
+      expect(n?.postId).toBe(post.id);
+    });
+
+    it("like propio no crea notificacion", async () => {
+      const prisma = new FakePrisma();
+      const service = makeService(prisma);
+      const alice = await prisma.user.create({
+        data: { email: "alice@test.com", username: "alice" },
+      });
+      const post = await prisma.post.create({ data: { authorId: alice.id, text: "post" } });
+
+      await service.like(alice.id, post.id);
+
+      expect(prisma.notifications).toHaveLength(0);
     });
   });
 });

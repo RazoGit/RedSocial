@@ -11,6 +11,7 @@ import {
   Query,
   Req,
   UnauthorizedException,
+  UseGuards,
 } from "@nestjs/common";
 import { ApiOperation, ApiResponse, ApiTags } from "@nestjs/swagger";
 import {
@@ -21,6 +22,7 @@ import {
 import type { FastifyRequest } from "fastify";
 
 import type { AccessTokenPayload } from "../auth/tokens.service";
+import { OptionalJwtAuthGuard } from "../../common/guards/jwt-auth.guard";
 import { Public } from "../../common/decorators/public.decorator";
 import { ZodValidationPipe } from "../../common/pipes/zod-validation.pipe";
 import type {
@@ -80,6 +82,7 @@ export class PostsController {
 
   /** T7: detalle de post. */
   @Public()
+  @UseGuards(OptionalJwtAuthGuard)
   @Get(":id")
   @ApiOperation({ summary: "Detalle de publicacion" })
   @ApiResponse({ status: 200, description: "Post encontrado" })
@@ -118,6 +121,7 @@ export class PostsController {
 
   /** T10: feed propio paginado cursor-based. */
   @Public()
+  @UseGuards(OptionalJwtAuthGuard)
   @Get("user/:username")
   @ApiOperation({ summary: "Feed propio paginado" })
   @ApiResponse({ status: 200, description: "Posts paginados" })

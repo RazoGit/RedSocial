@@ -7,13 +7,19 @@ import {
 import type { CommentResponse, CommentsResponse, CreateCommentRequest } from "@redsocial/contracts";
 
 import { PrismaService } from "../prisma/prisma.service";
+import { NotificationsService } from "../notifications/notifications.service";
 
 /**
  * Servicio de comentarios (spec 006). Crear, listar, eliminar con contadores atomicos.
+ * Spec 007/T14: al comentar se nota al autor del post (comment) y, en replies,
+ * al autor del padre (reply) sin duplicados.
  */
 @Injectable()
 export class CommentsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly notifications: NotificationsService,
+  ) {}
 
   /**
    * T11: Crear comentario. Transaccion atomica para incrementar contador.
@@ -25,7 +31,7 @@ export class CommentsService {
   ): Promise<CommentResponse> {
     const post = await this.prisma.post.findFirst({
       where: { id: postId, deletedAt: null },
-      select: { id: true },
+      select: { id: true, authorId: true },
     });
 
     if (!post) {
@@ -33,10 +39,11 @@ export class CommentsService {
     }
 
     // Si parentId esta presente, validar
+    let parentAuthorId: string | undefined;
     if (dto.parentId) {
       const parentComment = await this.prisma.comment.findFirst({
         where: { id: dto.parentId, postId, deletedAt: null },
-        select: { id: true, parentId: true },
+        select: { id: true, parentId: true, authorId: true },
       });
 
       if (!parentComment) {
@@ -47,6 +54,7 @@ export class CommentsService {
       if (parentComment.parentId !== null) {
         throw new BadRequestException("only_one_level_nesting_allowed");
       }
+      parentAuthorId = parentComment.authorId;
     }
 
     // Transaccion atomica: crear comentario + incrementar contador
@@ -73,6 +81,27 @@ export class CommentsService {
         data: { commentsCount: { increment: 1 } },
       }),
     ]);
+
+    // Spec 007/T14: notificar al autor del post (comment), post-commit.
+    if (post.authorId !== authorId) {
+      await this.notifications.create(post.authorId, {
+        actorId: authorId,
+        type: "comment",
+        postId,
+        commentId: comment.id,
+      });
+    }
+
+    // Spec 007/T14: en replies, notificar al autor del padre (reply),
+    // evitando duplicados con el autor del post o el propio actor.
+    if (parentAuthorId && parentAuthorId !== authorId && parentAuthorId !== post.authorId) {
+      await this.notifications.create(parentAuthorId, {
+        actorId: authorId,
+        type: "reply",
+        postId,
+        commentId: comment.id,
+      });
+    }
 
     return this.mapComment(comment, []);
   }

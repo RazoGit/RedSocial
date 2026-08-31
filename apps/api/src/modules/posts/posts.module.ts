@@ -3,6 +3,7 @@ import { BullModule, getQueueToken } from "@nestjs/bullmq";
 import { S3Client } from "@aws-sdk/client-s3";
 import IORedis from "ioredis";
 
+import { AuthModule } from "../auth/auth.module";
 import { FEED_FANOUT_QUEUE } from "../follows/services/feed-fanout.worker";
 import { LikesModule } from "../likes/likes.module";
 import { POST_MEDIA_QUEUE, S3_CLIENT } from "./posts.constants";
@@ -53,6 +54,7 @@ const disabledFanoutProvider: Provider = {
 @Module({
   imports: [
     LikesModule,
+    AuthModule,
     ...(disabled
       ? []
       : [

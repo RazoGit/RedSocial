@@ -4,6 +4,7 @@ import { S3Client } from "@aws-sdk/client-s3";
 import IORedis from "ioredis";
 
 import { AuthModule } from "../auth/auth.module";
+import { PresenceModule } from "../presence/presence.module";
 
 import { MEDIA_QUEUE, S3_CLIENT } from "./users.constants";
 import { UsernameService } from "./services/username.service";
@@ -47,6 +48,7 @@ const disabledQueueProvider: Provider = {
  */
 @Module({
   imports: [
+    PresenceModule,
     ...(disabled
       ? []
       : [
