@@ -120,3 +120,10 @@ export async function putBinary(url: string, body: Blob, contentType: string): P
     throw new ApiError(response.status, `Error ${response.status}`);
   }
 }
+
+export async function deleteJson<TResponse>(
+  path: string,
+  responseSchema: ZodType<TResponse>,
+): Promise<TResponse> {
+  return parseOk(await request(path, { method: "DELETE" }), responseSchema);
+}

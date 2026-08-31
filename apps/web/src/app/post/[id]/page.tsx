@@ -18,7 +18,9 @@ import { LoaderCircle } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { UserAvatar } from "@/components/user";
+import { CommentsSection } from "@/components/feed/comments-section";
 import { ApiError, getJson, patchJson } from "@/lib/api-client";
+import { likePost, unlikePost } from "@/lib/generated/api";
 import { cn } from "@/lib/utils";
 
 function formatDate(iso: string): string {
@@ -33,6 +35,8 @@ export default function PostDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>();
   const [liked, setLiked] = useState(false);
+  const [likesCount, setLikesCount] = useState(0);
+  const [likePending, setLikePending] = useState(false);
   const [saved, setSaved] = useState(false);
   const [editing, setEditing] = useState(false);
   const [editText, setEditText] = useState("");
@@ -43,7 +47,11 @@ export default function PostDetailPage() {
     (async () => {
       try {
         const data = await getJson(`/posts/${params.id}`, PostResponseSchema);
-        if (!cancelled) setPost(data);
+        if (!cancelled) {
+          setPost(data);
+          setLiked(data.isLiked ?? false);
+          setLikesCount(data.likesCount);
+        }
       } catch (caught) {
         if (cancelled) return;
         setError(
@@ -92,6 +100,29 @@ export default function PostDetailPage() {
       setError("No se pudo guardar.");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleLike = async () => {
+    if (likePending) return;
+    const prevLiked = liked;
+    const prevCount = likesCount;
+    const nextLiked = !prevLiked;
+    const nextCount = nextLiked ? prevCount + 1 : prevCount - 1;
+    setLiked(nextLiked);
+    setLikesCount(nextCount);
+    setLikePending(true);
+    try {
+      const res = nextLiked ? await likePost(post.id) : await unlikePost(post.id);
+      if ("status" in res && res.status === 200) {
+        setLiked(res.data.liked);
+        setLikesCount(res.data.likesCount);
+      }
+    } catch {
+      setLiked(prevLiked);
+      setLikesCount(prevCount);
+    } finally {
+      setLikePending(false);
     }
   };
 
@@ -217,10 +248,11 @@ export default function PostDetailPage() {
             size="sm"
             aria-pressed={liked}
             aria-label="Me gusta"
-            onClick={() => setLiked((v) => !v)}
+            onClick={handleLike}
             className={cn("gap-1.5", liked ? "text-primary" : "text-muted-foreground")}
           >
             <Heart className={cn("size-5", liked && "fill-current")} />
+            {likesCount > 0 && <span className="text-sm">{likesCount}</span>}
           </Button>
           <Button variant="ghost" size="sm" className="text-muted-foreground gap-1.5">
             <MessageCircle className="size-5" />
@@ -237,6 +269,8 @@ export default function PostDetailPage() {
           </Button>
         </div>
       </article>
+
+      <CommentsSection postId={post.id} isOwner={isOwner} />
     </div>
   );
 }

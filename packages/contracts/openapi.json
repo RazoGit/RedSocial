@@ -1,95 +1,661 @@
 {
-  "openapi": "3.0.0",
+  "openapi": "3.0.3",
+  "info": {
+    "title": "RedSocial API",
+    "description": "API REST para red social con autenticación JWT, posts, follow, likes y comentarios.",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "/api/v1",
+      "description": "API v1"
+    }
+  ],
+  "tags": [
+    {
+      "name": "health",
+      "description": "Health checks"
+    },
+    {
+      "name": "auth",
+      "description": "Autenticación y sesiones"
+    },
+    {
+      "name": "users",
+      "description": "Perfiles de usuario"
+    },
+    {
+      "name": "posts",
+      "description": "Publicaciones"
+    },
+    {
+      "name": "follows",
+      "description": "Grafo social"
+    },
+    {
+      "name": "feed",
+      "description": "Feed principal"
+    },
+    {
+      "name": "likes",
+      "description": "Likes"
+    },
+    {
+      "name": "comments",
+      "description": "Comentarios"
+    }
+  ],
   "paths": {
     "/api/v1/health": {
       "get": {
-        "operationId": "HealthController_getHealth_v1",
-        "parameters": [],
+        "tags": ["health"],
+        "summary": "Liveness probe",
+        "operationId": "getHealth",
+        "security": [],
         "responses": {
           "200": {
-            "description": ""
+            "description": "Servicio activo",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            }
           }
-        },
-        "summary": "Liveness probe",
-        "tags": ["health"]
+        }
       }
     },
     "/api/v1/ready": {
       "get": {
-        "operationId": "HealthController_getReady_v1",
-        "parameters": [],
+        "tags": ["health"],
+        "summary": "Readiness probe",
+        "operationId": "getReady",
+        "security": [],
         "responses": {
           "200": {
-            "description": ""
+            "description": "Checks completados",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReadinessResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/register": {
+      "post": {
+        "tags": ["auth"],
+        "summary": "Registro local con email y contraseña",
+        "operationId": "register",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegisterRequest"
+              }
+            }
           }
         },
-        "summary": "Readiness probe",
-        "tags": ["health"]
+        "responses": {
+          "201": {
+            "description": "Cuenta creada e inactiva; email de verificación encolado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RegisterResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Payload inválido (validation_failed)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Email ya registrado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/login": {
+      "post": {
+        "tags": ["auth"],
+        "summary": "Inicio de sesión local con email y contraseña",
+        "operationId": "login",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Sesión iniciada; Set-Cookie rt (httpOnly)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthSessionResponse"
+                }
+              }
+            },
+            "headers": {
+              "Set-Cookie": {
+                "description": "rt=<refresh_token>; HttpOnly; Path=/api/v1/auth/refresh; SameSite=Lax, csrf_token=<csrf_token>; HttpOnly; Path=/api/v1/auth/refresh; SameSite=Lax",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Payload inválido",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Credenciales incorrectas",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Demasiados intentos fallidos (RF-5)",
+            "headers": {
+              "Retry-After": {
+                "description": "Segundos hasta poder reintentar",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/verify-email": {
+      "post": {
+        "tags": ["auth"],
+        "summary": "Consume un token de verificación de email",
+        "operationId": "verifyEmail",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VerifyEmailRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Email verificado y sesión iniciada; Set-Cookie rt (httpOnly)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthSessionResponse"
+                }
+              }
+            },
+            "headers": {
+              "Set-Cookie": {
+                "description": "rt=<refresh_token>; HttpOnly; csrf_token=<csrf_token>; HttpOnly",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Token inválido, ya usado o expirado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/refresh": {
+      "post": {
+        "tags": ["auth"],
+        "summary": "Renueva la sesión rotando el refresh token",
+        "operationId": "refresh",
+        "description": "Requiere cookie rt httpOnly y header X-CSRF-Token igual al valor de la cookie csrf_token (double-submit).",
+        "responses": {
+          "200": {
+            "description": "Sesión renovada; nuevas cookies rt y csrf_token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthSessionResponse"
+                }
+              }
+            },
+            "headers": {
+              "Set-Cookie": {
+                "description": "rt=<new_refresh_token>; HttpOnly; csrf_token=<new_csrf_token>; HttpOnly",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Cookie ausente, token inválido, expirado o reutilizado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Header X-CSRF-Token ausente o distinto de la cookie csrf_token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/resend-verification": {
+      "post": {
+        "tags": ["auth"],
+        "summary": "Reenvía el email de verificación",
+        "operationId": "resendVerification",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResendVerificationRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Aceptado (con o sin cuenta asociada)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AcceptedResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/forgot-password": {
+      "post": {
+        "tags": ["auth"],
+        "summary": "Solicita un restablecimiento de contraseña",
+        "operationId": "forgotPassword",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ForgotPasswordRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Aceptado (con o sin cuenta asociada)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AcceptedResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Payload inválido",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/reset-password": {
+      "post": {
+        "tags": ["auth"],
+        "summary": "Restablece la contraseña con el token del email",
+        "operationId": "resetPassword",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResetPasswordRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Contraseña actualizada, sesiones revocadas y aviso enviado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResetPasswordResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Token inválido, ya usado o expirado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/logout": {
+      "post": {
+        "tags": ["auth"],
+        "summary": "Cierra la sesión actual",
+        "operationId": "logout",
+        "description": "Requiere header X-CSRF-Token igual a la cookie csrf_token.",
+        "responses": {
+          "200": {
+            "description": "Sesión revocada y cookies eliminadas",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LogoutResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Bearer ausente o inválido",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Header X-CSRF-Token inválido",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/logout-all": {
+      "post": {
+        "tags": ["auth"],
+        "summary": "Cierra todas las sesiones del usuario",
+        "operationId": "logoutAll",
+        "description": "Requiere header X-CSRF-Token igual a la cookie csrf_token.",
+        "responses": {
+          "200": {
+            "description": "Todas las sesiones revocadas y cookies eliminadas",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LogoutResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Bearer ausente o inválido",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Header X-CSRF-Token inválido",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/me": {
+      "get": {
+        "tags": ["auth"],
+        "summary": "Perfil público del usuario autenticado",
+        "operationId": "authMe",
+        "responses": {
+          "200": {
+            "description": "Perfil público del usuario del token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RegisterResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Token ausente/inválido o cuenta borrada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/oauth/{provider}": {
+      "get": {
+        "tags": ["auth"],
+        "summary": "Inicia el flujo OAuth con el proveedor",
+        "operationId": "oauthStart",
+        "security": [],
+        "parameters": [
+          {
+            "name": "provider",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": ["google", "github"]
+            },
+            "description": "Proveedor OAuth soportado"
+          }
+        ],
+        "responses": {
+          "302": {
+            "description": "Redirección al endpoint de autorización del proveedor"
+          },
+          "400": {
+            "description": "Proveedor desconocido",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Credenciales OAuth ausentes en este entorno",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/oauth/{provider}/callback": {
+      "get": {
+        "tags": ["auth"],
+        "summary": "Callback OAuth: canjea el code y emite la sesión",
+        "operationId": "oauthCallback",
+        "security": [],
+        "parameters": [
+          {
+            "name": "provider",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": ["google", "github"]
+            }
+          },
+          {
+            "name": "code",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Código de autorización del proveedor"
+          },
+          {
+            "name": "state",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "State parameter para CSRF"
+          }
+        ],
+        "responses": {
+          "302": {
+            "description": "Redirect al frontend con tokens en el fragmento; Set-Cookie rt y csrf_token"
+          },
+          "400": {
+            "description": "Proveedor desconocido o code ausente",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "State inválido/reutilizado, id_token inválido, nonce incorrecto",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "El proveedor rechazó el canje o no está disponible",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/api/v1/users/me": {
       "get": {
-        "description": "RF-6: incluye username provisional, datos editables y auditoria updatedAt. Requiere access token Bearer.",
-        "operationId": "UsersController_me_v1",
-        "parameters": [],
+        "tags": ["users"],
+        "summary": "Perfil completo del usuario autenticado",
+        "operationId": "getMe",
         "responses": {
           "200": {
-            "description": "",
+            "description": "Perfil del usuario autenticado",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "id": {
-                      "type": "string",
-                      "format": "uuid",
-                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
-                    },
-                    "email": {
-                      "type": "string"
-                    },
-                    "emailVerified": {
-                      "type": "boolean"
-                    },
-                    "username": {
-                      "type": "string"
-                    },
-                    "displayName": {
-                      "type": "string",
-                      "nullable": true
-                    },
-                    "bio": {
-                      "type": "string",
-                      "nullable": true
-                    },
-                    "avatarUrl": {
-                      "type": "string",
-                      "nullable": true
-                    },
-                    "avatarBlurhash": {
-                      "type": "string",
-                      "nullable": true
-                    },
-                    "isPrivate": {
-                      "type": "boolean"
-                    },
-                    "updatedAt": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "id",
-                    "email",
-                    "emailVerified",
-                    "username",
-                    "displayName",
-                    "bio",
-                    "avatarUrl",
-                    "avatarBlurhash",
-                    "isPrivate",
-                    "updatedAt"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/MeProfileResponse"
                 }
               }
             }
@@ -99,65 +665,23 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "statusCode": {
-                      "type": "number"
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "error": {
-                      "type": "string"
-                    },
-                    "path": {
-                      "type": "string"
-                    },
-                    "timestamp": {
-                      "type": "string"
-                    }
-                  },
-                  "required": ["statusCode", "message", "path", "timestamp"],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ApiErrorResponse"
                 }
               }
             }
           }
-        },
-        "summary": "Perfil completo del usuario autenticado",
-        "tags": ["users"]
+        }
       },
       "patch": {
-        "description": "Acepta displayName, bio, isPrivate y username. El primer cambio de username es gratis; despues maximo uno cada 14 dias y el anterior queda reservado 30 dias (RF-3).",
-        "operationId": "UsersController_update_v1",
-        "parameters": [],
+        "tags": ["users"],
+        "summary": "Actualiza el perfil del usuario autenticado",
+        "operationId": "updateMe",
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
               "schema": {
-                "type": "object",
-                "properties": {
-                  "displayName": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 50,
-                    "nullable": true
-                  },
-                  "bio": {
-                    "type": "string",
-                    "maxLength": 280,
-                    "nullable": true
-                  },
-                  "username": {
-                    "type": "string",
-                    "pattern": "^[a-z0-9_]{3,20}$"
-                  },
-                  "isPrivate": {
-                    "type": "boolean"
-                  }
-                },
-                "additionalProperties": false
+                "$ref": "#/components/schemas/UpdateProfileRequest"
               }
             }
           }
@@ -168,58 +692,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "id": {
-                      "type": "string",
-                      "format": "uuid",
-                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
-                    },
-                    "email": {
-                      "type": "string"
-                    },
-                    "emailVerified": {
-                      "type": "boolean"
-                    },
-                    "username": {
-                      "type": "string"
-                    },
-                    "displayName": {
-                      "type": "string",
-                      "nullable": true
-                    },
-                    "bio": {
-                      "type": "string",
-                      "nullable": true
-                    },
-                    "avatarUrl": {
-                      "type": "string",
-                      "nullable": true
-                    },
-                    "avatarBlurhash": {
-                      "type": "string",
-                      "nullable": true
-                    },
-                    "isPrivate": {
-                      "type": "boolean"
-                    },
-                    "updatedAt": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "id",
-                    "email",
-                    "emailVerified",
-                    "username",
-                    "displayName",
-                    "bio",
-                    "avatarUrl",
-                    "avatarBlurhash",
-                    "isPrivate",
-                    "updatedAt"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/MeProfileResponse"
                 }
               }
             }
@@ -229,26 +702,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "statusCode": {
-                      "type": "number"
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "error": {
-                      "type": "string"
-                    },
-                    "path": {
-                      "type": "string"
-                    },
-                    "timestamp": {
-                      "type": "string"
-                    }
-                  },
-                  "required": ["statusCode", "message", "path", "timestamp"],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ApiErrorResponse"
                 }
               }
             }
@@ -258,26 +712,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "statusCode": {
-                      "type": "number"
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "error": {
-                      "type": "string"
-                    },
-                    "path": {
-                      "type": "string"
-                    },
-                    "timestamp": {
-                      "type": "string"
-                    }
-                  },
-                  "required": ["statusCode", "message", "path", "timestamp"],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ApiErrorResponse"
                 }
               }
             }
@@ -287,60 +722,25 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "statusCode": {
-                      "type": "number"
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "error": {
-                      "type": "string"
-                    },
-                    "path": {
-                      "type": "string"
-                    },
-                    "timestamp": {
-                      "type": "string"
-                    }
-                  },
-                  "required": ["statusCode", "message", "path", "timestamp"],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ApiErrorResponse"
                 }
               }
             }
           }
-        },
-        "summary": "Actualiza el perfil del usuario autenticado",
-        "tags": ["users"]
+        }
       }
     },
     "/api/v1/users/me/avatar/presign": {
       "post": {
-        "description": "RF-4: acepta JPEG/PNG/WebP de hasta 2 MB; devuelve uploadUrl valida 15 min, la key destino y programa el job que genera thumbnail 256px + blurhash.",
-        "operationId": "UsersController_presignAvatar_v1",
-        "parameters": [],
+        "tags": ["users"],
+        "summary": "Emite una URL PUT pre-firmada para el avatar",
+        "operationId": "presignAvatar",
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
               "schema": {
-                "type": "object",
-                "properties": {
-                  "contentType": {
-                    "type": "string",
-                    "enum": ["image/jpeg", "image/png", "image/webp"]
-                  },
-                  "sizeBytes": {
-                    "type": "integer",
-                    "exclusiveMinimum": true,
-                    "maximum": 2097152,
-                    "minimum": 0
-                  }
-                },
-                "required": ["contentType", "sizeBytes"],
-                "additionalProperties": false
+                "$ref": "#/components/schemas/PresignAvatarRequest"
               }
             }
           }
@@ -351,26 +751,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "uploadUrl": {
-                      "type": "string",
-                      "format": "uri"
-                    },
-                    "key": {
-                      "type": "string",
-                      "minLength": 8,
-                      "maxLength": 256
-                    },
-                    "expiresIn": {
-                      "type": "integer",
-                      "exclusiveMinimum": true,
-                      "maximum": 9007199254740991,
-                      "minimum": 0
-                    }
-                  },
-                  "required": ["uploadUrl", "key", "expiresIn"],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/PresignAvatarResponse"
                 }
               }
             }
@@ -380,26 +761,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "statusCode": {
-                      "type": "number"
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "error": {
-                      "type": "string"
-                    },
-                    "path": {
-                      "type": "string"
-                    },
-                    "timestamp": {
-                      "type": "string"
-                    }
-                  },
-                  "required": ["statusCode", "message", "path", "timestamp"],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ApiErrorResponse"
                 }
               }
             }
@@ -409,47 +771,31 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "statusCode": {
-                      "type": "number"
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "error": {
-                      "type": "string"
-                    },
-                    "path": {
-                      "type": "string"
-                    },
-                    "timestamp": {
-                      "type": "string"
-                    }
-                  },
-                  "required": ["statusCode", "message", "path", "timestamp"],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ApiErrorResponse"
                 }
               }
             }
           }
-        },
-        "summary": "Emite una URL PUT pre-firmada para el avatar",
-        "tags": ["users"]
+        }
       }
     },
     "/api/v1/users/check-username": {
       "get": {
-        "description": "Publico. Devuelve available=true o el motivo: taken (ocupado), reserved (prohibido) o invalid_format (no cumple 3-20 de a-z0-9_).",
-        "operationId": "UsersController_checkUsername_v1",
+        "tags": ["users"],
+        "summary": "Consulta la disponibilidad de un username",
+        "operationId": "checkUsername",
+        "security": [],
         "parameters": [
           {
             "name": "u",
-            "required": true,
             "in": "query",
+            "required": true,
             "schema": {
-              "type": "string"
-            }
+              "type": "string",
+              "minLength": 3,
+              "maxLength": 20
+            },
+            "description": "Username candidato a consultar"
           }
         ],
         "responses": {
@@ -458,91 +804,55 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "available": {
-                      "type": "boolean"
-                    },
-                    "reason": {
-                      "type": "string",
-                      "enum": ["taken", "reserved", "invalid_format"]
-                    }
-                  },
-                  "required": ["available"],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/CheckUsernameResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Parámetro u faltante",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
                 }
               }
             }
           }
-        },
-        "summary": "Consulta la disponibilidad de un username",
-        "tags": ["users"]
+        }
       }
     },
     "/api/v1/users/{username}": {
       "get": {
-        "description": "Devuelve la vista completa si el perfil es publico o el espectador es el dueno; ante un perfil privado ajeno entrega solo username, displayName y avatar (RF-5).",
-        "operationId": "UsersController_getProfile_v1",
+        "tags": ["users"],
+        "summary": "Perfil público por username",
+        "operationId": "getProfile",
+        "security": [],
         "parameters": [
           {
             "name": "username",
-            "required": true,
             "in": "path",
+            "required": true,
             "schema": {
               "type": "string"
-            }
+            },
+            "description": "Username del perfil a consultar"
           }
         ],
         "responses": {
           "200": {
-            "description": "Vista minima de un perfil privado ante terceros\n\nVista completa del perfil",
+            "description": "Vista completa del perfil (público o propio)",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "id": {
-                      "type": "string",
-                      "format": "uuid",
-                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/UserProfileResponse"
                     },
-                    "username": {
-                      "type": "string"
-                    },
-                    "displayName": {
-                      "type": "string",
-                      "nullable": true
-                    },
-                    "bio": {
-                      "type": "string",
-                      "nullable": true
-                    },
-                    "avatarUrl": {
-                      "type": "string",
-                      "nullable": true
-                    },
-                    "avatarBlurhash": {
-                      "type": "string",
-                      "nullable": true
-                    },
-                    "isPrivate": {
-                      "type": "boolean"
-                    },
-                    "emailVerified": {
-                      "type": "boolean"
+                    {
+                      "$ref": "#/components/schemas/MinimalProfileResponse"
                     }
-                  },
-                  "required": [
-                    "id",
-                    "username",
-                    "displayName",
-                    "bio",
-                    "avatarUrl",
-                    "avatarBlurhash",
-                    "isPrivate",
-                    "emailVerified"
-                  ],
-                  "additionalProperties": false
+                  ]
                 }
               }
             }
@@ -552,1144 +862,292 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "statusCode": {
-                      "type": "number"
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "error": {
-                      "type": "string"
-                    },
-                    "path": {
-                      "type": "string"
-                    },
-                    "timestamp": {
-                      "type": "string"
-                    }
-                  },
-                  "required": ["statusCode", "message", "path", "timestamp"],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ApiErrorResponse"
                 }
               }
             }
           }
-        },
-        "summary": "Perfil publico por username",
-        "tags": ["users"]
+        }
       }
     },
-    "/api/v1/auth/register": {
+    "/api/v1/users/{username}/follow": {
       "post": {
-        "description": "Crea la cuenta inactiva (emailVerified=false) y encola el email de verificacion (RF-1/RF-2).",
-        "operationId": "AuthController_register_v1",
-        "parameters": [],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "email": {
-                    "type": "string",
-                    "maxLength": 254,
-                    "format": "email",
-                    "pattern": "^(?!\\.)(?!.*\\.\\.)([A-Za-z0-9_'+\\-\\.]*)[A-Za-z0-9_+-]@([A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$"
-                  },
-                  "password": {
-                    "type": "string",
-                    "minLength": 10,
-                    "maxLength": 128
-                  }
-                },
-                "required": ["email", "password"],
-                "additionalProperties": false
-              }
+        "tags": ["follows"],
+        "summary": "Seguir a un usuario",
+        "operationId": "follow",
+        "parameters": [
+          {
+            "name": "username",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
             }
           }
-        },
+        ],
         "responses": {
-          "201": {
-            "description": "Cuenta creada e inactiva; email de verificacion encolado",
+          "200": {
+            "description": "Ahora sigue al usuario",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "id": {
-                      "type": "string",
-                      "format": "uuid",
-                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
-                    },
-                    "email": {
-                      "type": "string"
-                    },
-                    "emailVerified": {
-                      "type": "boolean"
-                    }
-                  },
-                  "required": ["id", "email", "emailVerified"],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/FollowResponse"
                 }
               }
             }
           },
           "400": {
-            "description": "Payload invalido (validation_failed)",
+            "description": "No puedes seguirte a ti mismo",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "statusCode": {
-                      "type": "number"
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "error": {
-                      "type": "string"
-                    },
-                    "path": {
-                      "type": "string"
-                    },
-                    "timestamp": {
-                      "type": "string"
-                    }
-                  },
-                  "required": ["statusCode", "message", "path", "timestamp"],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Usuario no encontrado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
                 }
               }
             }
           },
           "409": {
-            "description": "Mensaje generico identico para cualquier email ya registrado",
+            "description": "Ya sigue a este usuario",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "statusCode": {
-                      "type": "number"
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "error": {
-                      "type": "string"
-                    },
-                    "path": {
-                      "type": "string"
-                    },
-                    "timestamp": {
-                      "type": "string"
-                    }
-                  },
-                  "required": ["statusCode", "message", "path", "timestamp"],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ApiErrorResponse"
                 }
               }
             }
           }
-        },
-        "summary": "Registro local con email y contrasena",
-        "tags": ["auth"]
-      }
-    },
-    "/api/v1/auth/verify-email": {
-      "post": {
-        "description": "Token de un solo uso valido 24 h; marca el email verificado e inicia sesion (RF-3): access token en cuerpo y refresh en cookie httpOnly.",
-        "operationId": "AuthController_verifyEmail_v1",
-        "parameters": [],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "token": {
-                    "type": "string",
-                    "minLength": 32,
-                    "maxLength": 128
-                  }
-                },
-                "required": ["token"],
-                "additionalProperties": false
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Email verificado y sesion iniciada; Set-Cookie rt (httpOnly)",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "accessToken": {
-                      "type": "string"
-                    },
-                    "expiresIn": {
-                      "type": "integer",
-                      "exclusiveMinimum": true,
-                      "maximum": 9007199254740991,
-                      "minimum": 0
-                    },
-                    "csrfToken": {
-                      "type": "string",
-                      "minLength": 32,
-                      "maxLength": 128
-                    }
-                  },
-                  "required": ["accessToken", "expiresIn", "csrfToken"],
-                  "additionalProperties": false
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Token invalido, ya usado o expirado",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "statusCode": {
-                      "type": "number"
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "error": {
-                      "type": "string"
-                    },
-                    "path": {
-                      "type": "string"
-                    },
-                    "timestamp": {
-                      "type": "string"
-                    }
-                  },
-                  "required": ["statusCode", "message", "path", "timestamp"],
-                  "additionalProperties": false
-                }
-              }
-            }
-          }
-        },
-        "summary": "Consume un token de verificacion de email",
-        "tags": ["auth"]
-      }
-    },
-    "/api/v1/auth/login": {
-      "post": {
-        "description": "RF-4: permite login aunque el email no este verificado. RF-5: tras 5 fallos por IP en 15 min responde 429 con Retry-After. Emite access token en cuerpo y refresh en cookie httpOnly (RF-6).",
-        "operationId": "AuthController_login_v1",
-        "parameters": [],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "email": {
-                    "type": "string",
-                    "maxLength": 254,
-                    "format": "email",
-                    "pattern": "^(?!\\.)(?!.*\\.\\.)([A-Za-z0-9_'+\\-\\.]*)[A-Za-z0-9_+-]@([A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$"
-                  },
-                  "password": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 128
-                  }
-                },
-                "required": ["email", "password"],
-                "additionalProperties": false
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Sesion iniciada; Set-Cookie rt (httpOnly)",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "accessToken": {
-                      "type": "string"
-                    },
-                    "expiresIn": {
-                      "type": "integer",
-                      "exclusiveMinimum": true,
-                      "maximum": 9007199254740991,
-                      "minimum": 0
-                    },
-                    "csrfToken": {
-                      "type": "string",
-                      "minLength": 32,
-                      "maxLength": 128
-                    }
-                  },
-                  "required": ["accessToken", "expiresIn", "csrfToken"],
-                  "additionalProperties": false
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Payload invalido (validation_failed)",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "statusCode": {
-                      "type": "number"
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "error": {
-                      "type": "string"
-                    },
-                    "path": {
-                      "type": "string"
-                    },
-                    "timestamp": {
-                      "type": "string"
-                    }
-                  },
-                  "required": ["statusCode", "message", "path", "timestamp"],
-                  "additionalProperties": false
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Mensaje generico identico para email inexistente o contrasena incorrecta",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "statusCode": {
-                      "type": "number"
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "error": {
-                      "type": "string"
-                    },
-                    "path": {
-                      "type": "string"
-                    },
-                    "timestamp": {
-                      "type": "string"
-                    }
-                  },
-                  "required": ["statusCode", "message", "path", "timestamp"],
-                  "additionalProperties": false
-                }
-              }
-            }
-          },
-          "429": {
-            "description": "IP bloqueada temporalmente por intentos fallidos repetidos (RF-5)",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "statusCode": {
-                      "type": "number"
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "error": {
-                      "type": "string"
-                    },
-                    "path": {
-                      "type": "string"
-                    },
-                    "timestamp": {
-                      "type": "string"
-                    }
-                  },
-                  "required": ["statusCode", "message", "path", "timestamp"],
-                  "additionalProperties": false
-                }
-              }
-            }
-          }
-        },
-        "summary": "Inicio de sesion local con email y contrasena",
-        "tags": ["auth"]
-      }
-    },
-    "/api/v1/auth/refresh": {
-      "post": {
-        "description": "RF-6/RF-7/RF-8: requiere cookie rt httpOnly y header X-CSRF-Token igual al valor de la cookie csrf_token (double-submit, D6). Rota el refresh: el anterior queda invalido y reutilizarlo revoca toda la familia con 401. Expiracion deslizante 30 d con tope de 90 d.",
-        "operationId": "AuthController_refresh_v1",
-        "parameters": [],
-        "responses": {
-          "200": {
-            "description": "Sesion renovada; nuevas cookies rt y csrf_token",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "accessToken": {
-                      "type": "string"
-                    },
-                    "expiresIn": {
-                      "type": "integer",
-                      "exclusiveMinimum": true,
-                      "maximum": 9007199254740991,
-                      "minimum": 0
-                    },
-                    "csrfToken": {
-                      "type": "string",
-                      "minLength": 32,
-                      "maxLength": 128
-                    }
-                  },
-                  "required": ["accessToken", "expiresIn", "csrfToken"],
-                  "additionalProperties": false
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Cookie ausente, token invalido, expirado o reutilizado (familia revocada)",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "statusCode": {
-                      "type": "number"
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "error": {
-                      "type": "string"
-                    },
-                    "path": {
-                      "type": "string"
-                    },
-                    "timestamp": {
-                      "type": "string"
-                    }
-                  },
-                  "required": ["statusCode", "message", "path", "timestamp"],
-                  "additionalProperties": false
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Header X-CSRF-Token ausente o distinto de la cookie csrf_token",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "statusCode": {
-                      "type": "number"
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "error": {
-                      "type": "string"
-                    },
-                    "path": {
-                      "type": "string"
-                    },
-                    "timestamp": {
-                      "type": "string"
-                    }
-                  },
-                  "required": ["statusCode", "message", "path", "timestamp"],
-                  "additionalProperties": false
-                }
-              }
-            }
-          }
-        },
-        "summary": "Renueva la sesion rotando el refresh token de la cookie",
-        "tags": ["auth"]
-      }
-    },
-    "/api/v1/auth/resend-verification": {
-      "post": {
-        "description": "Responde 202 siempre para no enumerar cuentas; invalida enlaces anteriores sin usar. El rate limit por IP se anade con forgot-password en T14.",
-        "operationId": "AuthController_resendVerification_v1",
-        "parameters": [],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "email": {
-                    "type": "string",
-                    "maxLength": 254,
-                    "format": "email",
-                    "pattern": "^(?!\\.)(?!.*\\.\\.)([A-Za-z0-9_'+\\-\\.]*)[A-Za-z0-9_+-]@([A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$"
-                  }
-                },
-                "required": ["email"],
-                "additionalProperties": false
-              }
-            }
-          }
-        },
-        "responses": {
-          "202": {
-            "description": "Aceptado (con o sin cuenta asociada)",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "accepted": {
-                      "type": "boolean",
-                      "enum": [true]
-                    }
-                  },
-                  "required": ["accepted"],
-                  "additionalProperties": false
-                }
-              }
-            }
-          }
-        },
-        "summary": "Reenvia el email de verificacion",
-        "tags": ["auth"]
-      }
-    },
-    "/api/v1/auth/forgot-password": {
-      "post": {
-        "description": "RF-11: responde 202 siempre para no enumerar cuentas. Si existe una cuenta local activa, encola un email con enlace valido durante 1 hora; el token es de un solo uso y invalida los anteriores.",
-        "operationId": "AuthController_forgotPassword_v1",
-        "parameters": [],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "email": {
-                    "type": "string",
-                    "maxLength": 254,
-                    "format": "email",
-                    "pattern": "^(?!\\.)(?!.*\\.\\.)([A-Za-z0-9_'+\\-\\.]*)[A-Za-z0-9_+-]@([A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$"
-                  }
-                },
-                "required": ["email"],
-                "additionalProperties": false
-              }
-            }
-          }
-        },
-        "responses": {
-          "202": {
-            "description": "Aceptado (con o sin cuenta asociada)",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "accepted": {
-                      "type": "boolean",
-                      "enum": [true]
-                    }
-                  },
-                  "required": ["accepted"],
-                  "additionalProperties": false
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Payload invalido (validation_failed)",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "statusCode": {
-                      "type": "number"
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "error": {
-                      "type": "string"
-                    },
-                    "path": {
-                      "type": "string"
-                    },
-                    "timestamp": {
-                      "type": "string"
-                    }
-                  },
-                  "required": ["statusCode", "message", "path", "timestamp"],
-                  "additionalProperties": false
-                }
-              }
-            }
-          }
-        },
-        "summary": "Solicita un restablecimiento de contrasena",
-        "tags": ["auth"]
-      }
-    },
-    "/api/v1/auth/reset-password": {
-      "post": {
-        "description": "RF-12: consume el token de un solo uso, guarda la nueva contrasena hasheada (argon2id), revoca TODAS las sesiones activas del usuario y le notifica por email.",
-        "operationId": "AuthController_resetPassword_v1",
-        "parameters": [],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "token": {
-                    "type": "string",
-                    "minLength": 32,
-                    "maxLength": 128
-                  },
-                  "password": {
-                    "type": "string",
-                    "minLength": 10,
-                    "maxLength": 128
-                  }
-                },
-                "required": ["token", "password"],
-                "additionalProperties": false
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Contrasena actualizada, sesiones revocadas y aviso enviado",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "ok": {
-                      "type": "boolean",
-                      "enum": [true]
-                    }
-                  },
-                  "required": ["ok"],
-                  "additionalProperties": false
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Token invalido, ya usado o expirado",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "statusCode": {
-                      "type": "number"
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "error": {
-                      "type": "string"
-                    },
-                    "path": {
-                      "type": "string"
-                    },
-                    "timestamp": {
-                      "type": "string"
-                    }
-                  },
-                  "required": ["statusCode", "message", "path", "timestamp"],
-                  "additionalProperties": false
-                }
-              }
-            }
-          }
-        },
-        "summary": "Restablece la contrasena con el token del email",
-        "tags": ["auth"]
-      }
-    },
-    "/api/v1/auth/logout": {
-      "post": {
-        "description": "RF-10: revoca la sesion identificada por el claim sid del access token y limpia las cookies rt y csrf_token. Requiere header X-CSRF-Token igual a la cookie csrf_token (D6).",
-        "operationId": "AuthController_logout_v1",
-        "parameters": [],
-        "responses": {
-          "200": {
-            "description": "Sesion revocada y cookies eliminadas",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "ok": {
-                      "type": "boolean",
-                      "enum": [true]
-                    }
-                  },
-                  "required": ["ok"],
-                  "additionalProperties": false
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Bearer ausente o invalido",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "statusCode": {
-                      "type": "number"
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "error": {
-                      "type": "string"
-                    },
-                    "path": {
-                      "type": "string"
-                    },
-                    "timestamp": {
-                      "type": "string"
-                    }
-                  },
-                  "required": ["statusCode", "message", "path", "timestamp"],
-                  "additionalProperties": false
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Header X-CSRF-Token ausente o distinto de la cookie csrf_token",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "statusCode": {
-                      "type": "number"
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "error": {
-                      "type": "string"
-                    },
-                    "path": {
-                      "type": "string"
-                    },
-                    "timestamp": {
-                      "type": "string"
-                    }
-                  },
-                  "required": ["statusCode", "message", "path", "timestamp"],
-                  "additionalProperties": false
-                }
-              }
-            }
-          }
-        },
-        "summary": "Cierra la sesion actual",
-        "tags": ["auth"]
-      }
-    },
-    "/api/v1/auth/logout-all": {
-      "post": {
-        "description": "RF-10: revoca todas las sesiones activas del usuario autenticado (incluida la actual) y limpia las cookies rt y csrf_token. Requiere header X-CSRF-Token igual a la cookie csrf_token (D6).",
-        "operationId": "AuthController_logoutAll_v1",
-        "parameters": [],
-        "responses": {
-          "200": {
-            "description": "Todas las sesiones revocadas y cookies eliminadas",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "ok": {
-                      "type": "boolean",
-                      "enum": [true]
-                    }
-                  },
-                  "required": ["ok"],
-                  "additionalProperties": false
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Bearer ausente o invalido",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "statusCode": {
-                      "type": "number"
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "error": {
-                      "type": "string"
-                    },
-                    "path": {
-                      "type": "string"
-                    },
-                    "timestamp": {
-                      "type": "string"
-                    }
-                  },
-                  "required": ["statusCode", "message", "path", "timestamp"],
-                  "additionalProperties": false
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Header X-CSRF-Token ausente o distinto de la cookie csrf_token",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "statusCode": {
-                      "type": "number"
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "error": {
-                      "type": "string"
-                    },
-                    "path": {
-                      "type": "string"
-                    },
-                    "timestamp": {
-                      "type": "string"
-                    }
-                  },
-                  "required": ["statusCode", "message", "path", "timestamp"],
-                  "additionalProperties": false
-                }
-              }
-            }
-          }
-        },
-        "summary": "Cierra todas las sesiones del usuario",
-        "tags": ["auth"]
-      }
-    },
-    "/api/v1/auth/me": {
-      "get": {
-        "description": "Requiere access token Bearer valido; responde 401 si la cuenta ya no existe.",
-        "operationId": "AuthController_me_v1",
-        "parameters": [],
-        "responses": {
-          "200": {
-            "description": "Perfil publico del usuario del token",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "id": {
-                      "type": "string",
-                      "format": "uuid",
-                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
-                    },
-                    "email": {
-                      "type": "string"
-                    },
-                    "emailVerified": {
-                      "type": "boolean"
-                    }
-                  },
-                  "required": ["id", "email", "emailVerified"],
-                  "additionalProperties": false
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Token ausente/invalido o cuenta borrada",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "statusCode": {
-                      "type": "number"
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "error": {
-                      "type": "string"
-                    },
-                    "path": {
-                      "type": "string"
-                    },
-                    "timestamp": {
-                      "type": "string"
-                    }
-                  },
-                  "required": ["statusCode", "message", "path", "timestamp"],
-                  "additionalProperties": false
-                }
-              }
-            }
-          }
-        },
-        "summary": "Perfil publico del usuario autenticado",
-        "tags": ["auth"]
-      }
-    },
-    "/api/v1/auth/oauth/{provider}": {
-      "get": {
-        "description": "RF-9: redirige a Google/GitHub con state+nonce firmados en una cookie temporal httpOnly (10 min). Requiere credenciales del proveedor via env; sin ellas responde 503.",
-        "operationId": "AuthController_oauthStart_v1",
+        }
+      },
+      "delete": {
+        "tags": ["follows"],
+        "summary": "Dejar de seguir a un usuario",
+        "operationId": "unfollow",
         "parameters": [
           {
-            "name": "provider",
-            "required": true,
+            "name": "username",
             "in": "path",
+            "required": true,
             "schema": {
               "type": "string"
             }
           }
         ],
         "responses": {
-          "302": {
-            "description": "Redireccion al endpoint de autorizacion del proveedor"
-          },
-          "400": {
-            "description": "Proveedor desconocido",
+          "200": {
+            "description": "Dejó de seguir al usuario",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "statusCode": {
-                      "type": "number"
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "error": {
-                      "type": "string"
-                    },
-                    "path": {
-                      "type": "string"
-                    },
-                    "timestamp": {
-                      "type": "string"
-                    }
-                  },
-                  "required": ["statusCode", "message", "path", "timestamp"],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/FollowResponse"
                 }
               }
             }
           },
-          "503": {
-            "description": "Credenciales OAuth ausentes en este entorno",
+          "404": {
+            "description": "Usuario no encontrado o no lo sigue",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "statusCode": {
-                      "type": "number"
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "error": {
-                      "type": "string"
-                    },
-                    "path": {
-                      "type": "string"
-                    },
-                    "timestamp": {
-                      "type": "string"
-                    }
-                  },
-                  "required": ["statusCode", "message", "path", "timestamp"],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ApiErrorResponse"
                 }
               }
             }
           }
-        },
-        "summary": "Inicia el flujo OAuth (authorization code) con el proveedor",
-        "tags": ["auth"]
+        }
       }
     },
-    "/api/v1/auth/oauth/{provider}/callback": {
+    "/api/v1/users/{username}/followers": {
       "get": {
-        "description": "Verifica el state contra la cookie firmada (un solo uso), canjea code por identidad verificada del proveedor (id_token/JWKS en Google; /user+/user/emails en GitHub), vincula por email verificado o crea cuenta verificada, y ejecuta RF-6: cookies rt+csrf_token y redirect al frontend con tokens en el fragmento.",
-        "operationId": "AuthController_oauthCallback_v1",
+        "tags": ["follows"],
+        "summary": "Lista de seguidores de un usuario",
+        "operationId": "getFollowers",
+        "security": [],
         "parameters": [
           {
-            "name": "provider",
-            "required": true,
+            "name": "username",
             "in": "path",
+            "required": true,
             "schema": {
               "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50,
+              "default": 20
+            }
+          },
+          {
+            "name": "createdBefore",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date-time"
             }
           }
         ],
         "responses": {
-          "302": {
-            "description": "Redirect a {APP_URL}/auth/callback#access=...&expires_in=...&csrf=...; Set-Cookie rt (httpOnly) y csrf_token"
-          },
-          "400": {
-            "description": "Proveedor desconocido o code ausente",
+          "200": {
+            "description": "Lista de seguidores",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "statusCode": {
-                      "type": "number"
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "error": {
-                      "type": "string"
-                    },
-                    "path": {
-                      "type": "string"
-                    },
-                    "timestamp": {
-                      "type": "string"
-                    }
-                  },
-                  "required": ["statusCode", "message", "path", "timestamp"],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/PaginatedUsersResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Usuario no encontrado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/users/{username}/following": {
+      "get": {
+        "tags": ["follows"],
+        "summary": "Lista de usuarios seguidos",
+        "operationId": "getFollowing",
+        "security": [],
+        "parameters": [
+          {
+            "name": "username",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50,
+              "default": 20
+            }
+          },
+          {
+            "name": "createdBefore",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Lista de usuarios seguidos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaginatedUsersResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Usuario no encontrado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/feed": {
+      "get": {
+        "tags": ["feed"],
+        "summary": "Feed cronológico de seguidos",
+        "operationId": "getFeed",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50,
+              "default": 20
+            }
+          },
+          {
+            "name": "createdBefore",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Posts paginados de usuarios seguidos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FeedResponse"
                 }
               }
             }
           },
           "401": {
-            "description": "State invalido/reutilizado, id_token invalido, nonce incorrecto o email sin verificar en el proveedor",
+            "description": "Token de acceso requerido",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "statusCode": {
-                      "type": "number"
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "error": {
-                      "type": "string"
-                    },
-                    "path": {
-                      "type": "string"
-                    },
-                    "timestamp": {
-                      "type": "string"
-                    }
-                  },
-                  "required": ["statusCode", "message", "path", "timestamp"],
-                  "additionalProperties": false
-                }
-              }
-            }
-          },
-          "502": {
-            "description": "El proveedor rechazo el canje o no esta disponible",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "statusCode": {
-                      "type": "number"
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "error": {
-                      "type": "string"
-                    },
-                    "path": {
-                      "type": "string"
-                    },
-                    "timestamp": {
-                      "type": "string"
-                    }
-                  },
-                  "required": ["statusCode", "message", "path", "timestamp"],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ApiErrorResponse"
                 }
               }
             }
           }
-        },
-        "summary": "Callback OAuth: canjea el code y emite la sesion (RF-9)",
-        "tags": ["auth"]
+        }
       }
     },
     "/api/v1/posts": {
       "post": {
-        "operationId": "PostsController_create_v1",
-        "summary": "Crear publicacion",
         "tags": ["posts"],
+        "summary": "Crear publicación",
+        "operationId": "createPost",
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
               "schema": {
-                "type": "object",
-                "properties": {
-                  "text": { "type": "string", "maxLength": 500 },
-                  "mediaKeys": { "type": "array", "items": { "type": "string" }, "maxItems": 4 }
-                },
-                "description": "Se requiere texto o al menos una imagen"
+                "$ref": "#/components/schemas/CreatePostRequest"
               }
             }
           }
@@ -1698,82 +1156,118 @@
           "201": {
             "description": "Post creado",
             "content": {
-              "application/json": { "schema": { "$ref": "#/components/schemas/PostResponse" } }
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PostResponse"
+                }
+              }
             }
           },
-          "422": { "description": "Texto o imagenes requeridos" }
+          "422": {
+            "description": "Texto o imágenes requeridos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
         }
       }
     },
     "/api/v1/posts/media/presign": {
       "post": {
-        "operationId": "PostsController_presignMedia_v1",
-        "summary": "URL pre-firmada para imagen de post",
         "tags": ["posts"],
+        "summary": "URL pre-firmada para imagen de post",
+        "operationId": "presignPostMedia",
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
               "schema": {
-                "type": "object",
-                "required": ["contentType", "sizeBytes"],
-                "properties": {
-                  "contentType": {
-                    "type": "string",
-                    "enum": ["image/jpeg", "image/png", "image/webp"]
-                  },
-                  "sizeBytes": { "type": "integer", "maximum": 5242880 }
-                }
+                "$ref": "#/components/schemas/PresignPostMediaRequest"
               }
             }
           }
         },
         "responses": {
           "200": {
-            "description": "URL de subida",
+            "description": "URL de subida emitida",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/PresignPostMediaResponse" }
+                "schema": {
+                  "$ref": "#/components/schemas/PresignPostMediaResponse"
+                }
               }
             }
           },
-          "400": { "description": "Tipo o tamano invalido" }
+          "400": {
+            "description": "Tipo o tamaño inválido",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
         }
       }
     },
     "/api/v1/posts/{id}": {
       "get": {
-        "operationId": "PostsController_findOne_v1",
-        "summary": "Detalle de publicacion",
         "tags": ["posts"],
+        "summary": "Detalle de publicación",
+        "operationId": "getPost",
+        "security": [],
         "parameters": [
           {
             "name": "id",
             "in": "path",
             "required": true,
-            "schema": { "type": "string", "format": "uuid" }
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
           }
         ],
         "responses": {
           "200": {
             "description": "Post encontrado",
             "content": {
-              "application/json": { "schema": { "$ref": "#/components/schemas/PostResponse" } }
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PostResponse"
+                }
+              }
             }
           },
-          "404": { "description": "Post no encontrado" }
+          "404": {
+            "description": "Post no encontrado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
         }
       },
       "patch": {
-        "operationId": "PostsController_update_v1",
-        "summary": "Editar texto de publicacion",
         "tags": ["posts"],
+        "summary": "Editar texto de publicación",
+        "operationId": "updatePost",
         "parameters": [
           {
             "name": "id",
             "in": "path",
             "required": true,
-            "schema": { "type": "string", "format": "uuid" }
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
           }
         ],
         "requestBody": {
@@ -1783,7 +1277,12 @@
               "schema": {
                 "type": "object",
                 "required": ["text"],
-                "properties": { "text": { "type": "string", "maxLength": 500 } }
+                "properties": {
+                  "text": {
+                    "type": "string",
+                    "maxLength": 500
+                  }
+                }
               }
             }
           }
@@ -1792,56 +1291,387 @@
           "200": {
             "description": "Post actualizado",
             "content": {
-              "application/json": { "schema": { "$ref": "#/components/schemas/PostResponse" } }
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PostResponse"
+                }
+              }
             }
           },
-          "403": { "description": "No es el autor" },
-          "404": { "description": "Post no encontrado" }
+          "403": {
+            "description": "No es el autor",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Post no encontrado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
         }
       },
       "delete": {
-        "operationId": "PostsController_remove_v1",
-        "summary": "Eliminar publicacion",
         "tags": ["posts"],
+        "summary": "Eliminar publicación",
+        "operationId": "deletePost",
         "parameters": [
           {
             "name": "id",
             "in": "path",
             "required": true,
-            "schema": { "type": "string", "format": "uuid" }
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
           }
         ],
         "responses": {
-          "204": { "description": "Post eliminado" },
-          "403": { "description": "No es el autor" },
-          "404": { "description": "Post no encontrado" }
+          "204": {
+            "description": "Post eliminado (borrado lógico)"
+          },
+          "403": {
+            "description": "No es el autor",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Post no encontrado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
         }
       }
     },
     "/api/v1/posts/user/{username}": {
       "get": {
-        "operationId": "PostsController_findByAuthor_v1",
-        "summary": "Feed propio paginado",
         "tags": ["posts"],
+        "summary": "Feed propio paginado de un usuario",
+        "operationId": "getPostsByAuthor",
+        "security": [],
         "parameters": [
-          { "name": "username", "in": "path", "required": true, "schema": { "type": "string" } },
+          {
+            "name": "username",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
           {
             "name": "limit",
             "in": "query",
-            "schema": { "type": "integer", "default": 20, "minimum": 1, "maximum": 50 }
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50,
+              "default": 20
+            }
           },
           {
             "name": "createdBefore",
             "in": "query",
-            "schema": { "type": "string", "format": "date-time" }
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
           }
         ],
         "responses": {
           "200": {
-            "description": "Posts paginados",
+            "description": "Posts paginados del usuario",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/PaginatedPostsResponse" }
+                "schema": {
+                  "$ref": "#/components/schemas/PaginatedPostsResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/posts/{id}/like": {
+      "post": {
+        "tags": ["likes"],
+        "summary": "Dar like a un post",
+        "operationId": "likePost",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Like agregado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LikeResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Post no encontrado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Ya le dio like",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": ["likes"],
+        "summary": "Quitar like de un post",
+        "operationId": "unlikePost",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Like removido",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LikeResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Post no encontrado o no liked",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/posts/{id}/comments": {
+      "post": {
+        "tags": ["comments"],
+        "summary": "Crear comentario en un post",
+        "operationId": "createComment",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateCommentRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Comentario creado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommentResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Texto vacío o anidación no permitida",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Post no encontrado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": ["comments"],
+        "summary": "Listar comentarios de un post",
+        "operationId": "listComments",
+        "security": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50,
+              "default": 20
+            }
+          },
+          {
+            "name": "createdBefore",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Comentarios paginados",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommentsResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Post no encontrado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/posts/{id}/comments/{commentId}": {
+      "delete": {
+        "tags": ["comments"],
+        "summary": "Eliminar un comentario",
+        "operationId": "deleteComment",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "commentId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Comentario eliminado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LogoutResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No es el autor del comentario",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Post o comentario no encontrado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
               }
             }
           }
@@ -1849,65 +1679,715 @@
       }
     }
   },
-  "info": {
-    "title": "RedSocial API",
-    "description": "API REST de la red social (contrato v0)",
-    "version": "0.1.0",
-    "contact": {}
-  },
-  "tags": [],
-  "servers": [],
   "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "Access token JWT en el header Authorization: Bearer <token>"
+      }
+    },
     "schemas": {
+      "HealthResponse": {
+        "type": "object",
+        "required": ["status", "service", "uptime"],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": ["ok"]
+          },
+          "service": {
+            "type": "string"
+          },
+          "uptime": {
+            "type": "number"
+          }
+        }
+      },
+      "ReadinessResponse": {
+        "type": "object",
+        "required": ["status", "checks"],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": ["ok", "degraded"]
+          },
+          "checks": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string",
+              "enum": ["up", "down"]
+            }
+          }
+        }
+      },
+      "ApiErrorResponse": {
+        "type": "object",
+        "required": ["statusCode", "message", "path", "timestamp"],
+        "properties": {
+          "statusCode": {
+            "type": "integer"
+          },
+          "message": {
+            "type": "string"
+          },
+          "error": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          },
+          "timestamp": {
+            "type": "string"
+          }
+        }
+      },
+      "RegisterRequest": {
+        "type": "object",
+        "required": ["email", "password"],
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "maxLength": 254
+          },
+          "password": {
+            "type": "string",
+            "minLength": 10,
+            "maxLength": 128
+          }
+        }
+      },
+      "RegisterResponse": {
+        "type": "object",
+        "required": ["id", "email", "emailVerified"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "email": {
+            "type": "string"
+          },
+          "emailVerified": {
+            "type": "boolean"
+          }
+        }
+      },
+      "VerifyEmailRequest": {
+        "type": "object",
+        "required": ["token"],
+        "properties": {
+          "token": {
+            "type": "string",
+            "minLength": 32,
+            "maxLength": 128
+          }
+        }
+      },
+      "LoginRequest": {
+        "type": "object",
+        "required": ["email", "password"],
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "maxLength": 254
+          },
+          "password": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          }
+        }
+      },
+      "AuthSessionResponse": {
+        "type": "object",
+        "required": ["accessToken", "expiresIn", "csrfToken"],
+        "properties": {
+          "accessToken": {
+            "type": "string"
+          },
+          "expiresIn": {
+            "type": "integer"
+          },
+          "csrfToken": {
+            "type": "string",
+            "minLength": 32,
+            "maxLength": 128
+          }
+        }
+      },
+      "ResendVerificationRequest": {
+        "type": "object",
+        "required": ["email"],
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "maxLength": 254
+          }
+        }
+      },
+      "AcceptedResponse": {
+        "type": "object",
+        "required": ["accepted"],
+        "properties": {
+          "accepted": {
+            "type": "boolean",
+            "enum": [true]
+          }
+        }
+      },
+      "ForgotPasswordRequest": {
+        "type": "object",
+        "required": ["email"],
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "maxLength": 254
+          }
+        }
+      },
+      "ResetPasswordRequest": {
+        "type": "object",
+        "required": ["token", "password"],
+        "properties": {
+          "token": {
+            "type": "string",
+            "minLength": 32,
+            "maxLength": 128
+          },
+          "password": {
+            "type": "string",
+            "minLength": 10,
+            "maxLength": 128
+          }
+        }
+      },
+      "ResetPasswordResponse": {
+        "type": "object",
+        "required": ["ok"],
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "enum": [true]
+          }
+        }
+      },
+      "LogoutResponse": {
+        "type": "object",
+        "required": ["ok"],
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "enum": [true]
+          }
+        }
+      },
+      "MeProfileResponse": {
+        "type": "object",
+        "required": [
+          "id",
+          "email",
+          "emailVerified",
+          "username",
+          "displayName",
+          "bio",
+          "avatarUrl",
+          "avatarBlurhash",
+          "isPrivate",
+          "updatedAt"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "email": {
+            "type": "string"
+          },
+          "emailVerified": {
+            "type": "boolean"
+          },
+          "username": {
+            "type": "string"
+          },
+          "displayName": {
+            "type": "string",
+            "nullable": true
+          },
+          "bio": {
+            "type": "string",
+            "nullable": true
+          },
+          "avatarUrl": {
+            "type": "string",
+            "nullable": true
+          },
+          "avatarBlurhash": {
+            "type": "string",
+            "nullable": true
+          },
+          "isPrivate": {
+            "type": "boolean"
+          },
+          "updatedAt": {
+            "type": "string"
+          }
+        }
+      },
+      "UpdateProfileRequest": {
+        "type": "object",
+        "minProperties": 1,
+        "properties": {
+          "displayName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 50,
+            "nullable": true
+          },
+          "bio": {
+            "type": "string",
+            "maxLength": 280,
+            "nullable": true
+          },
+          "username": {
+            "type": "string",
+            "pattern": "^[a-z0-9_]{3,20}$"
+          },
+          "isPrivate": {
+            "type": "boolean"
+          }
+        }
+      },
+      "CheckUsernameResponse": {
+        "type": "object",
+        "required": ["available"],
+        "properties": {
+          "available": {
+            "type": "boolean"
+          },
+          "reason": {
+            "type": "string",
+            "enum": ["taken", "reserved", "invalid_format"]
+          }
+        }
+      },
+      "UserProfileResponse": {
+        "type": "object",
+        "required": [
+          "id",
+          "username",
+          "displayName",
+          "bio",
+          "avatarUrl",
+          "avatarBlurhash",
+          "isPrivate",
+          "emailVerified",
+          "followersCount",
+          "followingCount"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "username": {
+            "type": "string"
+          },
+          "displayName": {
+            "type": "string",
+            "nullable": true
+          },
+          "bio": {
+            "type": "string",
+            "nullable": true
+          },
+          "avatarUrl": {
+            "type": "string",
+            "nullable": true
+          },
+          "avatarBlurhash": {
+            "type": "string",
+            "nullable": true
+          },
+          "isPrivate": {
+            "type": "boolean"
+          },
+          "emailVerified": {
+            "type": "boolean"
+          },
+          "followersCount": {
+            "type": "integer"
+          },
+          "followingCount": {
+            "type": "integer"
+          },
+          "isFollowing": {
+            "type": "boolean"
+          }
+        }
+      },
+      "MinimalProfileResponse": {
+        "type": "object",
+        "required": ["username", "displayName", "avatarUrl", "avatarBlurhash"],
+        "properties": {
+          "username": {
+            "type": "string"
+          },
+          "displayName": {
+            "type": "string",
+            "nullable": true
+          },
+          "avatarUrl": {
+            "type": "string",
+            "nullable": true
+          },
+          "avatarBlurhash": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "PresignAvatarRequest": {
+        "type": "object",
+        "required": ["contentType", "sizeBytes"],
+        "properties": {
+          "contentType": {
+            "type": "string",
+            "enum": ["image/jpeg", "image/png", "image/webp"]
+          },
+          "sizeBytes": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 2097152
+          }
+        }
+      },
+      "PresignAvatarResponse": {
+        "type": "object",
+        "required": ["uploadUrl", "key", "expiresIn"],
+        "properties": {
+          "uploadUrl": {
+            "type": "string",
+            "format": "uri"
+          },
+          "key": {
+            "type": "string",
+            "minLength": 8,
+            "maxLength": 256
+          },
+          "expiresIn": {
+            "type": "integer"
+          }
+        }
+      },
       "PostAuthor": {
         "type": "object",
+        "required": ["username", "displayName", "avatarUrl"],
         "properties": {
-          "username": { "type": "string" },
-          "displayName": { "type": "string", "nullable": true },
-          "avatarUrl": { "type": "string", "nullable": true }
-        },
-        "required": ["username"]
+          "username": {
+            "type": "string"
+          },
+          "displayName": {
+            "type": "string",
+            "nullable": true
+          },
+          "avatarUrl": {
+            "type": "string",
+            "nullable": true
+          }
+        }
       },
       "PostMedia": {
         "type": "object",
+        "required": ["key", "thumbKey", "blurhash", "width", "height", "contentType"],
         "properties": {
-          "key": { "type": "string" },
-          "thumbKey": { "type": "string", "nullable": true },
-          "blurhash": { "type": "string", "nullable": true },
-          "width": { "type": "integer", "nullable": true },
-          "height": { "type": "integer", "nullable": true },
-          "contentType": { "type": "string" }
-        },
-        "required": ["key", "contentType"]
+          "key": {
+            "type": "string"
+          },
+          "thumbKey": {
+            "type": "string",
+            "nullable": true
+          },
+          "blurhash": {
+            "type": "string",
+            "nullable": true
+          },
+          "width": {
+            "type": "integer",
+            "nullable": true
+          },
+          "height": {
+            "type": "integer",
+            "nullable": true
+          },
+          "contentType": {
+            "type": "string"
+          }
+        }
       },
       "PostResponse": {
         "type": "object",
+        "required": [
+          "id",
+          "author",
+          "text",
+          "media",
+          "likesCount",
+          "commentsCount",
+          "isLiked",
+          "createdAt",
+          "editedAt"
+        ],
         "properties": {
-          "id": { "type": "string", "format": "uuid" },
-          "author": { "$ref": "#/components/schemas/PostAuthor" },
-          "text": { "type": "string", "nullable": true },
-          "media": { "type": "array", "items": { "$ref": "#/components/schemas/PostMedia" } },
-          "createdAt": { "type": "string" },
-          "editedAt": { "type": "string", "nullable": true }
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "author": {
+            "$ref": "#/components/schemas/PostAuthor"
+          },
+          "text": {
+            "type": "string",
+            "nullable": true
+          },
+          "media": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PostMedia"
+            }
+          },
+          "likesCount": {
+            "type": "integer"
+          },
+          "commentsCount": {
+            "type": "integer"
+          },
+          "isLiked": {
+            "type": "boolean"
+          },
+          "createdAt": {
+            "type": "string"
+          },
+          "editedAt": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "CreatePostRequest": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "string",
+            "maxLength": 500
+          },
+          "mediaKeys": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 4
+          }
         },
-        "required": ["id", "author", "text", "media", "createdAt", "editedAt"]
+        "description": "Se requiere texto o al menos una imagen"
+      },
+      "PresignPostMediaRequest": {
+        "type": "object",
+        "required": ["contentType", "sizeBytes"],
+        "properties": {
+          "contentType": {
+            "type": "string",
+            "enum": ["image/jpeg", "image/png", "image/webp"]
+          },
+          "sizeBytes": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 5242880
+          }
+        }
       },
       "PresignPostMediaResponse": {
         "type": "object",
+        "required": ["uploadUrl", "key", "expiresIn"],
         "properties": {
-          "uploadUrl": { "type": "string", "format": "uri" },
-          "key": { "type": "string" },
-          "expiresIn": { "type": "integer" }
-        },
-        "required": ["uploadUrl", "key", "expiresIn"]
+          "uploadUrl": {
+            "type": "string",
+            "format": "uri"
+          },
+          "key": {
+            "type": "string",
+            "minLength": 8,
+            "maxLength": 256
+          },
+          "expiresIn": {
+            "type": "integer"
+          }
+        }
       },
       "PaginatedPostsResponse": {
         "type": "object",
+        "required": ["items", "nextCursor"],
         "properties": {
-          "items": { "type": "array", "items": { "$ref": "#/components/schemas/PostResponse" } },
-          "nextCursor": { "type": "string", "nullable": true }
-        },
-        "required": ["items", "nextCursor"]
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PostResponse"
+            }
+          },
+          "nextCursor": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "FollowResponse": {
+        "type": "object",
+        "required": ["following", "followersCount", "followingCount"],
+        "properties": {
+          "following": {
+            "type": "boolean"
+          },
+          "followersCount": {
+            "type": "integer"
+          },
+          "followingCount": {
+            "type": "integer"
+          }
+        }
+      },
+      "FeedResponse": {
+        "type": "object",
+        "required": ["items", "nextCursor"],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PostResponse"
+            }
+          },
+          "nextCursor": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "LikeResponse": {
+        "type": "object",
+        "required": ["liked", "likesCount"],
+        "properties": {
+          "liked": {
+            "type": "boolean"
+          },
+          "likesCount": {
+            "type": "integer"
+          }
+        }
+      },
+      "CommentAuthor": {
+        "type": "object",
+        "required": ["username", "displayName", "avatarUrl"],
+        "properties": {
+          "username": {
+            "type": "string"
+          },
+          "displayName": {
+            "type": "string",
+            "nullable": true
+          },
+          "avatarUrl": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "CommentResponse": {
+        "type": "object",
+        "required": ["id", "postId", "author", "text", "parentId", "replies", "createdAt"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "postId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "author": {
+            "$ref": "#/components/schemas/CommentAuthor"
+          },
+          "text": {
+            "type": "string"
+          },
+          "parentId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "replies": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CommentResponse"
+            }
+          },
+          "createdAt": {
+            "type": "string"
+          }
+        }
+      },
+      "CreateCommentRequest": {
+        "type": "object",
+        "required": ["text"],
+        "properties": {
+          "text": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "parentId": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
+      "CommentsResponse": {
+        "type": "object",
+        "required": ["items", "nextCursor", "total"],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CommentResponse"
+            }
+          },
+          "nextCursor": {
+            "type": "string",
+            "nullable": true
+          },
+          "total": {
+            "type": "integer"
+          }
+        }
+      },
+      "PaginatedUsersResponse": {
+        "type": "object",
+        "required": ["items", "nextCursor"],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/UserProfileResponse"
+            }
+          },
+          "nextCursor": {
+            "type": "string",
+            "nullable": true
+          }
+        }
       }
     }
   }

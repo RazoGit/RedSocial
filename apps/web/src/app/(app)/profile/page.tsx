@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 
 import { ProfileTabs } from "@/components/profile/profile-tabs";
 import { ProfileEditor } from "@/components/profile/profile-editor";
+import { AppearanceSettings } from "@/components/profile/appearance-settings";
 
 export const metadata: Metadata = {
   title: "Editar perfil | R",
@@ -17,6 +18,7 @@ export default function ProfilePage() {
         </p>
       </header>
       <ProfileEditor />
+      <AppearanceSettings />
       <ProfileTabs />
     </div>
   );

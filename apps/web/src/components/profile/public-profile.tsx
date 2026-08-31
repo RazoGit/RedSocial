@@ -13,6 +13,7 @@ import { LoaderCircle } from "lucide-react";
 
 import { UserAvatar, VerifiedMark } from "@/components/user";
 import { Button } from "@/components/ui/button";
+import { FollowButton } from "@/components/feed/follow-button";
 import { ApiError, getJson } from "@/lib/api-client";
 
 interface ProfileViewProps {
@@ -44,7 +45,7 @@ function PostThumbnail({ post }: { post: PostResponse }) {
 /**
  * Vista publica /u/[username] (RF-5): consume el endpoint sin token; si el
  * perfil es privado la API responde con la vista minima y aqui se refleja.
- * Incluye grid de posts paginados.
+ * Incluye grid de posts, botón de seguir y contadores.
  */
 export function PublicProfile({ username }: ProfileViewProps) {
   const [profile, setProfile] = useState<UserProfileResponse | MinimalProfileResponse>();
@@ -175,6 +176,22 @@ export function PublicProfile({ username }: ProfileViewProps) {
           </p>
         ) : null}
         {!isFull ? <p className="text-muted-foreground text-xs">Este perfil es privado.</p> : null}
+
+        {/* Contadores + botón seguir */}
+        {isFull && (
+          <div className="flex items-center gap-4 text-sm">
+            <span className="text-muted-foreground">
+              <strong className="text-foreground">{profile.followersCount ?? 0}</strong> seguidores
+            </span>
+            <span className="text-muted-foreground">
+              <strong className="text-foreground">{profile.followingCount ?? 0}</strong> seguidos
+            </span>
+            <FollowButton
+              username={profile.username}
+              initialFollowing={profile.isFollowing ?? false}
+            />
+          </div>
+        )}
       </div>
 
       {isFull && (

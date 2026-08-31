@@ -2,8 +2,9 @@
 
 import { useState } from "react";
 
+import { FeedList } from "@/components/feed/feed-list";
 import { PostCard } from "@/components/feed/post-card";
-import { paraTiPosts, siguiendoPosts } from "@/lib/mock-data";
+import { paraTiPosts } from "@/lib/mock-data";
 import { cn } from "@/lib/utils";
 
 type FeedTab = "para-ti" | "siguiendo";
@@ -15,7 +16,7 @@ const tabs: { value: FeedTab; label: string }[] = [
 
 export function FeedTabs() {
   const [tab, setTab] = useState<FeedTab>("para-ti");
-  const posts = tab === "para-ti" ? paraTiPosts() : siguiendoPosts();
+  const posts = paraTiPosts();
 
   return (
     <div className="flex flex-col gap-4">
@@ -43,11 +44,15 @@ export function FeedTabs() {
         ))}
       </div>
 
-      <div className="flex flex-col gap-4">
-        {posts.map((post) => (
-          <PostCard key={post.id} post={post} />
-        ))}
-      </div>
+      {tab === "para-ti" ? (
+        <div className="flex flex-col gap-4">
+          {posts.map((post) => (
+            <PostCard key={post.id} post={post} />
+          ))}
+        </div>
+      ) : (
+        <FeedList />
+      )}
     </div>
   );
 }
