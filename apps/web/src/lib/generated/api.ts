@@ -362,6 +362,64 @@ export interface PaginatedUsersResponse {
   nextCursor: string | null;
 }
 
+export type NotificationType = typeof NotificationType[keyof typeof NotificationType];
+
+
+export const NotificationType = {
+  like: 'like',
+  comment: 'comment',
+  reply: 'reply',
+  follow: 'follow',
+} as const;
+
+export interface NotificationActor {
+  id: string;
+  username: string;
+  /** @nullable */
+  displayName: string | null;
+  /** @nullable */
+  avatarUrl: string | null;
+}
+
+export interface Notification {
+  id: string;
+  type: NotificationType;
+  actor: NotificationActor;
+  /** @nullable */
+  postId: string | null;
+  /** @nullable */
+  commentId: string | null;
+  read: boolean;
+  createdAt: string;
+}
+
+export interface NotificationsResponse {
+  items: Notification[];
+  /** @nullable */
+  nextCursor: string | null;
+  /** @minimum 0 */
+  unreadCount: number;
+}
+
+export interface UnreadCountResponse {
+  /** @minimum 0 */
+  unreadCount: number;
+}
+
+export interface NotificationReadResponse {
+  id: string;
+  read: true;
+}
+
+export interface ReadAllNotificationsResponse {
+  ok: true;
+}
+
+export interface MarkNotificationsReadRequest {
+  /** @maxItems 100 */
+  ids?: string[];
+}
+
 export type OauthCallbackParams = {
 /**
  * Código de autorización del proveedor
@@ -424,6 +482,15 @@ createdBefore?: string;
 };
 
 export type ListCommentsParams = {
+/**
+ * @minimum 1
+ * @maximum 50
+ */
+limit?: number;
+createdBefore?: string;
+};
+
+export type ListNotificationsParams = {
 /**
  * @minimum 1
  * @maximum 50
@@ -2131,6 +2198,191 @@ export const deleteComment = async (id: string,
   {
     ...options,
     method: 'DELETE'
+
+
+  }
+);}
+
+
+
+export type listNotificationsResponse200 = {
+  data: NotificationsResponse
+  status: 200
+}
+
+export type listNotificationsResponse401 = {
+  data: ApiErrorResponse
+  status: 401
+}
+
+export type listNotificationsResponseSuccess = (listNotificationsResponse200) & {
+  headers: Headers;
+};
+export type listNotificationsResponseError = (listNotificationsResponse401) & {
+  headers: Headers;
+};
+
+export type listNotificationsResponse = (listNotificationsResponseSuccess | listNotificationsResponseError)
+
+export const getListNotificationsUrl = (params?: ListNotificationsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/v1/notifications?${stringifiedParams}` : `/api/v1/notifications`
+}
+
+/**
+ * @summary Notificaciones del usuario autenticado
+ */
+export const listNotifications = async (params?: ListNotificationsParams, options?: Parameters<typeof customFetch>[1]): Promise<listNotificationsResponse> => {
+
+  return customFetch<listNotificationsResponse>(getListNotificationsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+export type markNotificationReadResponse200 = {
+  data: NotificationReadResponse
+  status: 200
+}
+
+export type markNotificationReadResponse404 = {
+  data: ApiErrorResponse
+  status: 404
+}
+
+export type markNotificationReadResponseSuccess = (markNotificationReadResponse200) & {
+  headers: Headers;
+};
+export type markNotificationReadResponseError = (markNotificationReadResponse404) & {
+  headers: Headers;
+};
+
+export type markNotificationReadResponse = (markNotificationReadResponseSuccess | markNotificationReadResponseError)
+
+export const getMarkNotificationReadUrl = (id: string,) => {
+
+
+
+
+  return `/api/v1/notifications/${id}/read`
+}
+
+/**
+ * @summary Marcar una notificacion como leida
+ */
+export const markNotificationRead = async (id: string, options?: Parameters<typeof customFetch>[1]): Promise<markNotificationReadResponse> => {
+
+  return customFetch<markNotificationReadResponse>(getMarkNotificationReadUrl(id),
+  {
+    ...options,
+    method: 'PATCH'
+
+
+  }
+);}
+
+
+
+export type markAllNotificationsReadResponse200 = {
+  data: ReadAllNotificationsResponse
+  status: 200
+}
+
+export type markAllNotificationsReadResponse401 = {
+  data: ApiErrorResponse
+  status: 401
+}
+
+export type markAllNotificationsReadResponseSuccess = (markAllNotificationsReadResponse200) & {
+  headers: Headers;
+};
+export type markAllNotificationsReadResponseError = (markAllNotificationsReadResponse401) & {
+  headers: Headers;
+};
+
+export type markAllNotificationsReadResponse = (markAllNotificationsReadResponseSuccess | markAllNotificationsReadResponseError)
+
+export const getMarkAllNotificationsReadUrl = () => {
+
+
+
+
+  return `/api/v1/notifications/read-all`
+}
+
+/**
+ * @summary Marcar todas las notificaciones como leidas
+ */
+export const markAllNotificationsRead = async (markNotificationsReadRequest?: MarkNotificationsReadRequest, options?: Parameters<typeof customFetch>[1]): Promise<markAllNotificationsReadResponse> => {
+
+    const getHeaders = (h?: HeadersInit | Headers): Record<string, string> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Array.isArray(h)) return Object.fromEntries(h);
+    return h;
+  };
+return customFetch<markAllNotificationsReadResponse>(getMarkAllNotificationsReadUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(markNotificationsReadRequest)
+  }
+);}
+
+
+
+export type getUnreadCountResponse200 = {
+  data: UnreadCountResponse
+  status: 200
+}
+
+export type getUnreadCountResponse401 = {
+  data: ApiErrorResponse
+  status: 401
+}
+
+export type getUnreadCountResponseSuccess = (getUnreadCountResponse200) & {
+  headers: Headers;
+};
+export type getUnreadCountResponseError = (getUnreadCountResponse401) & {
+  headers: Headers;
+};
+
+export type getUnreadCountResponse = (getUnreadCountResponseSuccess | getUnreadCountResponseError)
+
+export const getGetUnreadCountUrl = () => {
+
+
+
+
+  return `/api/v1/notifications/unread-count`
+}
+
+/**
+ * @summary Conteo de notificaciones no leidas
+ */
+export const getUnreadCount = async ( options?: Parameters<typeof customFetch>[1]): Promise<getUnreadCountResponse> => {
+
+  return customFetch<getUnreadCountResponse>(getGetUnreadCountUrl(),
+  {
+    ...options,
+    method: 'GET'
 
 
   }

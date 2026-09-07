@@ -285,6 +285,7 @@ export const POST_MAX_TEXT_LENGTH = 500;
 
 /** Informacion del autor de un post. */
 export const PostAuthorSchema = z.object({
+  id: z.uuid(),
   username: z.string(),
   displayName: z.string().nullable(),
   avatarUrl: z.string().nullable(),

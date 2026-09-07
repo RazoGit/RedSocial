@@ -2,6 +2,8 @@ import type { ZodType } from "zod";
 
 import { ApiErrorResponseSchema } from "@redsocial/contracts";
 
+import { getAuthSession } from "@/lib/auth-session";
+
 /**
  * Cliente del API para el navegador. En dev las peticiones van por el
  * rewrite de Next (/api/v1 -> API), asi que todo es same-origin y la
@@ -9,6 +11,15 @@ import { ApiErrorResponseSchema } from "@redsocial/contracts";
  */
 
 const API_BASE = "/api/v1";
+
+/**
+ * Token Bearer en memoria (una sola instancia por pestana, ver auth-session).
+ * Si hay sesion, se adjunta a cada peticion para los endpoints protegidos.
+ */
+function authHeaders(): Record<string, string> {
+  const session = getAuthSession();
+  return session ? { authorization: `Bearer ${session.accessToken}` } : {};
+}
 
 export class ApiError extends Error {
   constructor(
@@ -58,6 +69,7 @@ async function request(path: string, init: RequestInit): Promise<Response> {
       credentials: "same-origin",
       cache: "no-store",
       ...init,
+      headers: { ...authHeaders(), ...(init.headers as Record<string, string> | undefined) },
     });
   } catch {
     throw new ApiError(0, NETWORK_MESSAGE);

@@ -14,6 +14,7 @@ import { LoaderCircle } from "lucide-react";
 import { UserAvatar, VerifiedMark } from "@/components/user";
 import { Button } from "@/components/ui/button";
 import { FollowButton } from "@/components/feed/follow-button";
+import { PresenceDot } from "@/components/realtime/presence-dot";
 import { ApiError, getJson } from "@/lib/api-client";
 
 interface ProfileViewProps {
@@ -159,10 +160,13 @@ export function PublicProfile({ username }: ProfileViewProps) {
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col items-center gap-3 pt-6 text-center">
-        <UserAvatar
-          name={profile.displayName || profile.username}
-          className="ring-primary/70 size-20 ring-2 ring-offset-4 ring-offset-background"
-        />
+        <div className="relative">
+          <UserAvatar
+            name={profile.displayName || profile.username}
+            className="ring-primary/70 size-20 ring-2 ring-offset-4 ring-offset-background"
+          />
+          {isFull ? <PresenceDot userId={profile.id} className="size-5" /> : null}
+        </div>
         <div>
           <h1 className="flex items-center justify-center gap-1.5 text-xl font-bold">
             {profile.displayName || profile.username}

@@ -7,6 +7,7 @@ import type { PostResponse } from "@redsocial/contracts";
 
 import { Button } from "@/components/ui/button";
 import { UserAvatar, VerifiedMark } from "@/components/user";
+import { PresenceDot } from "@/components/realtime/presence-dot";
 import { likePost, unlikePost } from "@/lib/generated/api";
 import { coverGradient, userById, type MockPost } from "@/lib/mock-data";
 import { cn } from "@/lib/utils";
@@ -245,11 +246,12 @@ function RealPostCard({
       setCommentsCount={setCommentsCount}
     >
       <div className="flex items-center gap-3">
-        <Link href={`/u/${post.author.username}`}>
+        <Link href={`/u/${post.author.username}`} className="relative">
           <UserAvatar
             name={post.author.displayName || post.author.username}
             className="ring-primary/50 size-10 ring-2 ring-offset-2 ring-offset-background"
           />
+          <PresenceDot userId={post.author.id} />
         </Link>
         <div className="min-w-0 flex-1">
           <p className="flex items-center gap-1 truncate text-sm font-semibold">

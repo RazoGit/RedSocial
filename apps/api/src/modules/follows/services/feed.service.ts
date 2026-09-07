@@ -155,6 +155,7 @@ export class FeedService {
     return {
       id: post.id,
       author: {
+        id: post.author.id,
         username: post.author.username!,
         displayName: post.author.displayName,
         avatarUrl: post.author.avatarThumbKey ? `/avatars/${post.author.id}/thumb` : null,

@@ -6,6 +6,7 @@ import {
   WebSocketGateway,
   SubscribeMessage,
   MessageBody,
+  ConnectedSocket,
 } from "@nestjs/websockets";
 import type { Server, Socket } from "socket.io";
 
@@ -81,6 +82,8 @@ export class RealtimeGateway implements OnGatewayInit, OnGatewayConnection, OnGa
     }
     await client.join(userRoom(userId));
     await this.presence.setOnline(userId);
+    // RF-8: avisar a quienes observan presence:{userId} (para dot online).
+    this.safeEmit(presenceRoom(userId), "presence:change", { userId, online: true });
     try {
       const unreadCount = await this.prisma.notification.count({
         where: { userId, readAt: null },
@@ -104,17 +107,21 @@ export class RealtimeGateway implements OnGatewayInit, OnGatewayConnection, OnGa
   /** RF-8: el cliente observa la presencia de los usuarios visibles. */
   @SubscribeMessage("presence:watch")
   async onPresenceWatch(
-    client: Socket,
+    @ConnectedSocket() client: Socket,
     @MessageBody() body: PresenceWatchBody,
-  ): Promise<{ ok: true }> {
+  ): Promise<{ ok: true; online: Record<string, boolean> }> {
     const ids = Array.isArray(body?.userIds) ? body.userIds.slice(0, MAX_WATCH_IDS) : [];
-    for (const id of ids) await client.join(presenceRoom(id));
-    return { ok: true };
+    const online: Record<string, boolean> = {};
+    for (const id of ids) {
+      await client.join(presenceRoom(id));
+      online[id] = Boolean(await this.presence.isOnline(id));
+    }
+    return { ok: true, online };
   }
 
   @SubscribeMessage("presence:unwatch")
   async onPresenceUnwatch(
-    client: Socket,
+    @ConnectedSocket() client: Socket,
     @MessageBody() body: PresenceWatchBody,
   ): Promise<{ ok: true }> {
     const ids = Array.isArray(body?.userIds) ? body.userIds.slice(0, MAX_WATCH_IDS) : [];
@@ -123,7 +130,7 @@ export class RealtimeGateway implements OnGatewayInit, OnGatewayConnection, OnGa
   }
 
   @SubscribeMessage("heartbeat")
-  async onHeartbeat(client: Socket): Promise<{ ok: true }> {
+  async onHeartbeat(@ConnectedSocket() client: Socket): Promise<{ ok: true }> {
     const userId = client.data.userId as string | undefined;
     if (userId) await this.presence.touch(userId);
     return { ok: true };

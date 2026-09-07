@@ -42,6 +42,12 @@ tareas; el código solo llega cuando la prueba de aceptación está definida.
 > ✅ **Spec 006 — Likes y Comentarios:** completa (T1–T20). Like/unlike idempotente,
 > comentarios con respuestas 1 nivel, contadores atómicos, frontend con likes y
 > respuestas. Smoke E2E en vivo con Docker verde (2026-08-30).
+>
+> ✅ **Spec 007 — Tiempo Real y Notificaciones:** completa (T1–T24). Gateway
+> Socket.IO autenticado con JWT, notificaciones persistidas (like/comment/reply/
+> follow) emitidas en < 1 s (34 ms en smoke), badge y lista paginada en frontend
+> con toasts, presence Redis con TTL 120 s y dot online/offline. Smoke E2E en vivo
+> `SMOKE-OK-007` con Docker verde (2026-09-06, 14 aserciones).
 
 ## Arquitectura
 
@@ -144,6 +150,7 @@ pnpm dev
 | `pnpm typecheck`                              | TypeScript estricto                       |
 | `pnpm --filter @redsocial/api test`           | Tests unitarios y de integración (Vitest) |
 | `pnpm e2e`                                    | E2E del flujo de auth (Playwright)        |
+| `pnpm --filter @redsocial/web smoke:007`      | Smoke E2E en vivo de tiempo real (Docker) |
 | `pnpm --filter @redsocial/api openapi:export` | Exporta el contrato OpenAPI a JSON        |
 | `pnpm --filter @redsocial/web generate:api`   | Regenera el cliente HTTP con Orval        |
 | `pnpm --filter @redsocial/api prisma:studio`  | Explorador de datos Prisma                |
@@ -164,6 +171,7 @@ Las especificaciones completadas y activas:
 - [`specs/004-posts`](specs/004-posts/tasks.md) ✅ — Posts y contenido
 - [`specs/005-social-graph`](specs/005-social-graph/tasks.md) ✅ — Grafo social y feed
 - [`specs/006-likes-comentarios`](specs/006-likes-comentarios/tasks.md) ✅ — Likes y comentarios
+- [`specs/007-tiempo-real-notificaciones`](specs/007-tiempo-real-notificaciones/tasks.md) ✅ — Tiempo real y notificaciones
 
 ## Roadmap
 
@@ -175,7 +183,7 @@ Las especificaciones completadas y activas:
 - [x] Fase 5 — Posts y contenido (spec 004)
 - [x] Fase 6 — Grafo social y feed (spec 005)
 - [x] Fase 7 — Likes y comentarios (spec 006)
-- [ ] Tiempo real y notificaciones (spec 007) ← **actual**
+- [x] Fase 8 — Tiempo real y notificaciones (spec 007)
 - [ ] Despliegue en free tier
 
 ---

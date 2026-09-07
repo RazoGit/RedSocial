@@ -107,15 +107,21 @@ describe("RealtimeGateway", () => {
     expect(socket.disconnect).toHaveBeenCalledWith(true);
   });
 
-  it("presence:watch une a las rooms de presencia (con cap de 100)", async () => {
-    const { gateway } = buildGateway();
+  it("presence:watch une a las rooms de presencia (con cap de 100) y responde snapshot", async () => {
+    const { gateway, presence } = buildGateway();
     const socket = fakeSocket();
     const ids = Array.from({ length: 120 }, (_, i) => `extra-${i}`);
     const result = await gateway.onPresenceWatch(socket, { userIds: [...["u1", "u2"], ...ids] });
-    expect(result).toEqual({ ok: true });
+    expect(result.ok).toBe(true);
     expect(socket.join).toHaveBeenCalledTimes(100);
     expect(socket.join).toHaveBeenCalledWith("presence:u1");
     expect(socket.join).not.toHaveBeenCalledWith("presence:extra-100");
+    // snapshot inicial: u1 online, resto offline
+    expect(result.online).toHaveProperty("u1");
+    expect(Object.keys(result.online)).toHaveLength(100);
+    await presence.setOnline("u1");
+    const result2 = await gateway.onPresenceWatch(socket, { userIds: ["u1"] });
+    expect(result2.online).toEqual({ u1: true });
   });
 
   it("presence:unwatch deja las rooms", async () => {
@@ -147,8 +153,17 @@ describe("RealtimeGateway", () => {
     await gateway.handleDisconnect(socket);
     await expect(presence.isOnline("u1")).resolves.toBe(false);
     expect(server.to).toHaveBeenCalledWith("presence:u1");
-    const emitMock = (server.to as ReturnType<typeof vi.fn>).mock.results[0].value.emit;
-    expect(emitMock).toHaveBeenCalledWith("presence:change", { userId: "u1", online: false });
+    const emits = (server.to as ReturnType<typeof vi.fn>).mock.results
+      .map((result) => result.value.emit)
+      .filter((emit) =>
+        (emit as ReturnType<typeof vi.fn>).mock.calls.some((c) => c[0] === "presence:change"),
+      );
+    expect(emits.length).toBeGreaterThan(0);
+    const offlineEmit = emits
+      .map((emit) => (emit as ReturnType<typeof vi.fn>).mock.calls)
+      .flat()
+      .find((call) => call[1]?.online === false);
+    expect(offlineEmit).toEqual(["presence:change", { userId: "u1", online: false }]);
   });
 
   it("emitNotificationNew envia al room user y no lanza sin server", () => {

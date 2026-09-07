@@ -3,9 +3,12 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Bell, Compass, Home, Mail, Plus, Search, User } from "lucide-react";
+import type { ReactNode } from "react";
 
 import { Logo } from "@/components/logo";
 import { LogoutButton } from "@/components/auth/logout-button";
+import { UnreadBadge } from "@/components/realtime/notification-bell";
+import { NotificationBell } from "@/components/realtime/notification-bell";
 import { UserAvatar } from "@/components/user";
 import { Button } from "@/components/ui/button";
 import { currentUser } from "@/lib/mock-data";
@@ -24,7 +27,12 @@ function useIsActive(href: string): boolean {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
-function NavLink({ href, label, icon: Icon }: (typeof navItems)[number]) {
+type NavLinkProps = (typeof navItems)[number] & {
+  trailing?: ReactNode;
+  iconBadge?: ReactNode;
+};
+
+function NavLink({ href, label, icon: Icon, trailing, iconBadge }: NavLinkProps) {
   const active = useIsActive(href);
   return (
     <Link
@@ -39,6 +47,8 @@ function NavLink({ href, label, icon: Icon }: (typeof navItems)[number]) {
     >
       <Icon className="size-5" />
       {label}
+      {trailing ? <span className="ml-auto">{trailing}</span> : null}
+      {iconBadge ? <span className="relative">{iconBadge}</span> : null}
     </Link>
   );
 }
@@ -52,7 +62,11 @@ export function AppSidebar() {
 
       <nav aria-label="Navegacion principal" className="flex flex-col gap-1">
         {navItems.map((item) => (
-          <NavLink key={item.href} {...item} />
+          <NavLink
+            key={item.href}
+            {...item}
+            trailing={item.href === "/notifications" ? <UnreadBadge /> : undefined}
+          />
         ))}
       </nav>
 
@@ -94,14 +108,7 @@ export function TopBar() {
               <Search className="size-5" />
             </Link>
           </Button>
-          <Button variant="ghost" size="icon" asChild className="size-10">
-            <Link href="/notifications" aria-label="Notificaciones">
-              <span className="relative">
-                <Bell className="size-5" />
-                <span className="absolute -top-0.5 -right-0.5 size-2 rounded-full bg-primary" />
-              </span>
-            </Link>
-          </Button>
+          <NotificationBell />
         </div>
       </div>
     </header>
@@ -136,7 +143,10 @@ export function BottomNav() {
         </li>
         {rightItems.map((item) => (
           <li key={item.href} className="flex items-center">
-            <NavLink {...item} />
+            <NavLink
+              {...item}
+              iconBadge={item.href === "/notifications" ? <UnreadBadge /> : undefined}
+            />
           </li>
         ))}
       </ul>

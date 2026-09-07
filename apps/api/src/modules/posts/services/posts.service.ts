@@ -85,12 +85,13 @@ export class PostsService {
 
     const author = await this.prisma.user.findUniqueOrThrow({
       where: { id: authorId },
-      select: { username: true, displayName: true, avatarThumbKey: true },
+      select: { id: true, username: true, displayName: true, avatarThumbKey: true },
     });
 
     return {
       id: post.id,
       author: {
+        id: author.id,
         username: author.username!,
         displayName: author.displayName,
         avatarUrl: author.avatarThumbKey ? `/avatars/${authorId}/thumb` : null,
@@ -136,6 +137,7 @@ export class PostsService {
     return {
       id: post.id,
       author: {
+        id: post.author.id,
         username: post.author.username!,
         displayName: post.author.displayName,
         avatarUrl: post.author.avatarThumbKey ? `/avatars/${post.authorId}/thumb` : null,
@@ -254,6 +256,7 @@ export class PostsService {
       items: items.map((post) => ({
         id: post.id,
         author: {
+          id: author.id,
           username: authorUsername,
           displayName: author.displayName,
           avatarUrl: author.avatarThumbKey ? `/avatars/${author.id}/thumb` : null,

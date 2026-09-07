@@ -36,21 +36,21 @@
 
 ## Bloque F — Frontend
 
-- [ ] **T17.** Regenerar OpenAPI + cliente Orval (endpoints notifications). Tipos WS manuales en `@redsocial/contracts`. _Verificar: `pnpm generate:api` exitoso._
-- [ ] **T18.** `lib/socket.ts` + `NotificationsProvider`: conecta con token, estados unreadCount/notifications, eventos initial/new/unread, markRead/markAllRead. _Verificar: badge en NavBar refleja unreadCount._
-- [ ] **T19.** Campana en NavBar: badge, dropdown con ultimas notificaciones, boton marcar todo leido. _Verificar: click muestra lista y actualiza badge._
-- [ ] **T20.** Pagina `/notifications`: lista paginada con `useInfiniteScroll`, texto por tipo, link al post, timeout relativo.
-- [ ] **T21.** Toast `notification:new` cuando no se esta en `/notifications`. _Verificar: toast aparece al like ajeno en otra pestana._
-- [ ] **T22.** Presence en perfil y `PostCard` de feed: `presence:watch` de autores visibles, dot online/offline, `presence:unwatch` al desmontar. _Verificar: perfil muestra online cuando el autor conecta._
+- [x] **T17.** Regenerar OpenAPI + cliente Orval (endpoints notifications). Tipos WS manuales en `@redsocial/contracts`. _Verificar: `pnpm generate:api` exitoso._
+- [x] **T18.** `lib/socket.ts` + `NotificationsProvider`: conecta con token, estados unreadCount/notifications, eventos initial/new/unread, markRead/markAllRead. _Verificar: badge en NavBar refleja unreadCount._
+- [x] **T19.** Campana en NavBar: badge, dropdown con ultimas notificaciones, boton marcar todo leido. _Verificar: click muestra lista y actualiza badge._
+- [x] **T20.** Pagina `/notifications`: lista paginada con `useInfiniteScroll`, texto por tipo, link al post, timeout relativo.
+- [x] **T21.** Toast `notification:new` cuando no se esta en `/notifications`. _Verificar: toast aparece al like ajeno en otra pestana._
+- [x] **T22.** Presence en perfil y `PostCard` de feed: `presence:watch` de autores visibles, dot online/offline, `presence:unwatch` al desmontar. _Verificar: perfil muestra online cuando el autor conecta._
 
 ## Bloque G — Cierre
 
-- [ ] **T23.** Smoke E2E en vivo (Docker): A y B conectados a WS; B like/comenta/sigue => A recibe `notification:new` en < 1 s; badge sube; marcar leido decrementa; A desconecta => `isOnline=false` y `presence:change` a B. _Verificar: flujo completo `SMOKE-OK-007`._
-- [ ] **T24.** README actualizado + cobertura >=75% (notifications + presence + gateway). _Verificar: tests pasan, CI verde._
+- [x] **T23.** Smoke E2E en vivo (Docker): A y B conectados a WS; B like/comenta/sigue => A recibe `notification:new` en < 1 s; badge sube; marcar leido decrementa; A desconecta => `isOnline=false` y `presence:change` a B. _Verificar: flujo completo `SMOKE-OK-007` con `pnpm --filter @redsocial/web smoke:007`._ (verde el 2026-09-06, 14 aserciones; expuso y corregio `@ConnectedSocket` en los handlers `presence:watch/unwatch` y `heartbeat`)
+- [x] **T24.** README actualizado + cobertura >=75% (notifications + presence + gateway). _Verificar: tests pasan, CI verde._ (cobertura verificada: notifications 98.95 %, presence 100 %, realtime 77.84 %)
 
 ## Definition of Done de la spec
 
-- [ ] Todas las tareas marcadas y sus criterios demostrados
-- [ ] Criterios Gherkin de spec.md automatizados (unit/integración según plan §11)
-- [ ] Cobertura >=75% · CI verde · contrato OpenAPI sin breaking changes vs v0
-- [ ] Evento like→notificacion probado con Docker en < 1 s (criterio Fase 7 ROADMAP)
+- [x] Todas las tareas marcadas y sus criterios demostrados
+- [x] Criterios Gherkin de spec.md automatizados (unit/integración según plan §11)
+- [x] Cobertura >=75% · CI verde · contrato OpenAPI sin breaking changes vs v0
+- [x] Evento like→notificacion probado con Docker en < 1 s (criterio Fase 7 ROADMAP, 34 ms)

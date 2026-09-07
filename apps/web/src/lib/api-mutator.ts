@@ -1,15 +1,21 @@
 import { ApiErrorResponseSchema } from "@redsocial/contracts";
 
 import { ApiError } from "@/lib/api-client";
+import { getAuthSession } from "@/lib/auth-session";
 
 /**
  * Mutator de Orval (T17): todas las funciones generadas pasan por aqui.
- * Reutiliza el manejo de errores del contrato (ApiErrorResponseSchema) y
- * envia/acepta cookies same-origin para el refresh httpOnly.
+ * Reutiliza el manejo de errores del contrato (ApiErrorResponseSchema),
+ * envia/acepta cookies same-origin para el refresh httpOnly y adjunta el
+ * access token Bearer en memoria cuando hay sesion (spec 007).
  */
 export const customFetch = async <T>(url: string, options?: RequestInit): Promise<T> => {
+  const session = getAuthSession();
+  const headers = new Headers(options?.headers);
+  if (session) headers.set("authorization", `Bearer ${session.accessToken}`);
   const response = await fetch(url, {
     ...options,
+    headers,
     credentials: "same-origin",
     cache: "no-store",
   });
