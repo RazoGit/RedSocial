@@ -11,7 +11,7 @@ import { UnreadBadge } from "@/components/realtime/notification-bell";
 import { NotificationBell } from "@/components/realtime/notification-bell";
 import { UserAvatar } from "@/components/user";
 import { Button } from "@/components/ui/button";
-import { currentUser } from "@/lib/mock-data";
+import { useMe } from "@/lib/use-me";
 import { cn } from "@/lib/utils";
 
 const navItems = [
@@ -54,6 +54,8 @@ function NavLink({ href, label, icon: Icon, trailing, iconBadge }: NavLinkProps)
 }
 
 export function AppSidebar() {
+  const { me } = useMe();
+
   return (
     <aside className="fixed inset-y-0 left-0 z-40 hidden w-64 flex-col border-r border-border bg-background px-4 py-6 md:flex">
       <Link href="/feed" className="mb-8 px-3">
@@ -80,11 +82,13 @@ export function AppSidebar() {
       <div className="mt-auto">
         <div className="flex items-center gap-1 rounded-lg p-1 transition-colors hover:bg-secondary">
           <Link href="/profile" className="flex min-w-0 flex-1 items-center gap-3 rounded-md p-1">
-            <UserAvatar name={currentUser.name} className="size-9" />
+            <UserAvatar name={me?.displayName ?? me?.username ?? "?"} className="size-9" />
             <span className="min-w-0">
-              <span className="block truncate text-sm font-medium">{currentUser.name}</span>
+              <span className="block truncate text-sm font-medium">
+                {me?.displayName ?? me?.username ?? "..."}
+              </span>
               <span className="text-muted-foreground block truncate text-xs">
-                @{currentUser.handle}
+                {me ? `@${me.username}` : ""}
               </span>
             </span>
           </Link>

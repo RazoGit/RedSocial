@@ -84,6 +84,7 @@ export function ProfileEditor() {
     handleSubmit,
     reset,
     watch,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<ProfileForm>({
     resolver: zodResolver(ProfileFormSchema),
@@ -286,7 +287,19 @@ export function ProfileEditor() {
 
       <div className="flex flex-col gap-2">
         <Label htmlFor="username">Username</Label>
-        <Input id="username" aria-invalid={Boolean(errors.username)} {...register("username")} />
+        <Input
+          id="username"
+          aria-invalid={Boolean(errors.username)}
+          {...register("username", {
+            onChange: (event) => {
+              // RF-2: los usernames son solo minusculas; normalizar al escribir
+              // evita el rechazo por mayusculas ("Razo1" -> "razo1").
+              const next = event.target.value.toLowerCase();
+              event.target.value = next;
+              setValue("username", next, { shouldDirty: true, shouldValidate: true });
+            },
+          })}
+        />
         {errors.username ? (
           <p className="text-destructive text-xs">{errors.username.message}</p>
         ) : availability.kind === "checking" ? (

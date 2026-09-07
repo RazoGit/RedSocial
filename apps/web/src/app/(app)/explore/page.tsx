@@ -1,9 +1,54 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Search } from "lucide-react";
+import { FeedResponseSchema } from "@redsocial/contracts";
+import type { PostResponse } from "@redsocial/contracts";
 
-import { coverGradient, mockPosts } from "@/lib/mock-data";
+import { getJson } from "@/lib/api-client";
+
+function PostThumbnail({ post }: { post: PostResponse }) {
+  return (
+    <Link
+      href={`/post/${post.id}`}
+      aria-label={`Publicacion de ${post.author.username}`}
+      className="border-border bg-muted relative block aspect-square overflow-hidden rounded-lg border transition-opacity hover:opacity-80"
+    >
+      {post.text ? (
+        <div className="bg-primary/5 absolute inset-0 flex items-center justify-center p-3">
+          <p className="text-muted-foreground line-clamp-4 text-center text-xs leading-relaxed">
+            {post.text}
+          </p>
+        </div>
+      ) : (
+        <span aria-hidden className="absolute inset-0" />
+      )}
+    </Link>
+  );
+}
 
 export default function ExplorePage() {
+  const [posts, setPosts] = useState<PostResponse[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const data = await getJson("/feed?limit=20", FeedResponseSchema);
+        if (!cancelled) setPosts(data.items);
+      } catch {
+        // Sin API: grid vacio.
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   return (
     <div className="flex flex-col gap-4">
       <div className="relative">
@@ -17,27 +62,19 @@ export default function ExplorePage() {
       </div>
 
       <h1 className="sr-only">Explorar</h1>
-      <div className="grid grid-cols-3 gap-1.5">
-        {mockPosts.map((post) => (
-          <Link
-            key={post.id}
-            href={`/post/${post.id}`}
-            aria-label={`Publicacion de ${post.hashtag ?? "usuario"}`}
-            className="border-border relative aspect-square overflow-hidden rounded-lg border transition-opacity hover:opacity-80"
-          >
-            <div
-              className="absolute inset-0"
-              style={{ backgroundImage: coverGradient(post.hue) }}
-            />
-            <span
-              aria-hidden
-              className="absolute inset-0 flex items-center justify-center select-none"
-            >
-              <span className="text-primary/20 text-5xl font-bold">R</span>
-            </span>
-          </Link>
-        ))}
-      </div>
+      {loading ? (
+        <p className="text-muted-foreground py-8 text-center text-sm">Cargando...</p>
+      ) : posts.length === 0 ? (
+        <p className="text-muted-foreground py-8 text-center text-sm">
+          Sigue a personas para ver sus publicaciones aqui.
+        </p>
+      ) : (
+        <div className="grid grid-cols-3 gap-1.5">
+          {posts.map((post) => (
+            <PostThumbnail key={post.id} post={post} />
+          ))}
+        </div>
+      )}
     </div>
   );
 }

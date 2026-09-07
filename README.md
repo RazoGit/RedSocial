@@ -48,6 +48,13 @@ tareas; el código solo llega cuando la prueba de aceptación está definida.
 > follow) emitidas en < 1 s (34 ms en smoke), badge y lista paginada en frontend
 > con toasts, presence Redis con TTL 120 s y dot online/offline. Smoke E2E en vivo
 > `SMOKE-OK-007` con Docker verde (2026-09-06, 14 aserciones).
+>
+> ✅ **Frontend conectado a datos reales (2026-09):** se eliminaron los mocks
+> (`mock-data`). Sidebar (usuario actual vía `GET /users/me`), feed (`/feed`),
+> perfil propio (stats + grid de posts vía `/users/:username` y `/posts/user/`),
+> explorar y detalle de post consumen la API real, de modo que cada cuenta ve sus
+> propios datos. `RealtimeProvider` (badge, toasts y presencia) también envuelve
+> `/post/*` y `/u/*`.
 
 ## Arquitectura
 

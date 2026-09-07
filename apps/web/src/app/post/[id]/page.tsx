@@ -21,6 +21,7 @@ import { UserAvatar } from "@/components/user";
 import { CommentsSection } from "@/components/feed/comments-section";
 import { ApiError, getJson, patchJson } from "@/lib/api-client";
 import { likePost, unlikePost } from "@/lib/generated/api";
+import { useMe } from "@/lib/use-me";
 import { cn } from "@/lib/utils";
 
 function formatDate(iso: string): string {
@@ -31,6 +32,7 @@ function formatDate(iso: string): string {
 export default function PostDetailPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
+  const { me } = useMe();
   const [post, setPost] = useState<PostResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>();
@@ -87,7 +89,7 @@ export default function PostDetailPage() {
     );
   }
 
-  const isOwner = post.author.username === localStorage.getItem("username");
+  const isOwner = me !== undefined && post.author.username === me.username;
 
   const handleSaveEdit = async () => {
     if (!editText.trim() || editText.length > 500) return;
